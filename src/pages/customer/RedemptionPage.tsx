@@ -32,6 +32,8 @@ export function RedemptionPage() {
   }, [id])
 
   useEffect(() => {
+    setCountdown(10)
+    if (countRef.current) clearInterval(countRef.current)
     countRef.current = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) { clearInterval(countRef.current!); return 0 }
@@ -39,7 +41,7 @@ export function RedemptionPage() {
       })
     }, 1000)
     return () => { if (countRef.current) clearInterval(countRef.current) }
-  }, [])
+  }, [id])
 
   const campaign = voucher?.voucher_campaigns
   const merchant = campaign?.merchants
@@ -87,30 +89,27 @@ export function RedemptionPage() {
             <CheckCircle size={64} className="text-[#FF3B30]" strokeWidth={1.5} />
           </motion.div>
 
-          {/* REDEEMED text with shimmer */}
+          {/* REDEEMED text with gradient sweep through letters */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5, duration: 0.3 }}
             className="text-center mb-2"
           >
-            <div className="relative inline-block">
-              <span
-                className="text-[48px] font-black text-[#1D1D1F] block"
-                style={{ letterSpacing: '-0.02em' }}
-              >
-                REDEEMED
-              </span>
-              <div
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  background: 'linear-gradient(90deg, transparent 0%, rgba(255,59,48,0.35) 50%, transparent 100%)',
-                  backgroundSize: '200% 100%',
-                  animation: 'shimmer-text 2s infinite linear',
-                  mixBlendMode: 'multiply',
-                }}
-              />
-            </div>
+            <span
+              className="text-[48px] font-black block"
+              style={{
+                letterSpacing: '-0.02em',
+                background: 'linear-gradient(90deg, #C41E3A 0%, #FF3B30 25%, #FF7F50 50%, #FF3B30 75%, #C41E3A 100%)',
+                backgroundSize: '200% 100%',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                animation: 'shimmer-text 2.5s infinite linear',
+              }}
+            >
+              REDEEMED
+            </span>
             <p className="text-[20px] text-[#86868B] mt-1">for {firstName}</p>
           </motion.div>
 
