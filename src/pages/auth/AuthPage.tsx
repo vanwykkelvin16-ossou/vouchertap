@@ -43,10 +43,16 @@ export function AuthPage() {
     const { error } = await signIn(data.email, data.password)
     setLoading(false)
     if (error) {
-      toast.error('Incorrect email or password. Try again.')
-    } else {
-      navigate('/')
+      const msg = error.message ?? ''
+      if (msg.includes('fetch') || msg.includes('network') || msg.includes('Failed')) {
+        toast.error('Connection error. Check your internet and try again.')
+      } else if (msg.includes('confirm') || msg.includes('verified')) {
+        toast.error('Please confirm your email address first.')
+      } else {
+        toast.error('Incorrect email or password. Try again.')
+      }
     }
+    // Redirect handled by the user && profile render guard above
   }
 
   async function onSignup(data: SignupForm) {
