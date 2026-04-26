@@ -97,16 +97,8 @@ export function RedemptionPage() {
             className="text-center mb-2"
           >
             <span
-              className="text-[48px] font-black block"
-              style={{
-                letterSpacing: '-0.02em',
-                background: 'linear-gradient(90deg, #C41E3A 0%, #FF3B30 25%, #FF7F50 50%, #FF3B30 75%, #C41E3A 100%)',
-                backgroundSize: '200% 100%',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                animation: 'shimmer-text 2.5s infinite linear',
-              }}
+              className="text-[48px] font-black block text-[#FF3B30]"
+              style={{ letterSpacing: '-0.02em' }}
             >
               REDEEMED
             </span>
