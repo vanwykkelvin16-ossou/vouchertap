@@ -146,77 +146,103 @@ function ShopPage() {
         </Card>
       ) : (
         <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 lg:grid-cols-3">
-          {visible.map((p, i) => {
-            const cover = coverImage(p);
-            const gallery = galleryImages(p);
-            return (
-              <li
-                key={p.id}
-                className="animate-rise"
-                style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}
-              >
-                <button
-                  onClick={() => setSelected(p)}
-                  className="block w-full text-left group h-full"
-                >
-                  <Card className="overflow-hidden rounded-2xl border-border/60 shadow-lg shadow-black/[0.04] ring-1 ring-black/[0.02] hover:shadow-xl hover:shadow-black/[0.08] hover:-translate-y-1 hover:border-primary/40 transition-all duration-300 ease-out h-full flex flex-col p-0">
-                    {/* Image stage */}
-                    <div className="relative aspect-square bg-white border-b border-border/50">
-                      {cover ? (
-                        <img
-                          src={cover}
-                          alt={p.name}
-                          loading="lazy"
-                          className="absolute inset-0 size-full object-contain p-4 group-hover:scale-[1.05] transition-transform duration-500"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 grid place-items-center text-muted-foreground/30">
-                          <Shirt className="size-12" />
-                        </div>
-                      )}
-                      {gallery.length > 1 && (
-                        <span className="absolute bottom-2 right-2 font-serial text-[9px] bg-foreground/80 text-background rounded-full px-2 py-0.5">
-                          1/{gallery.length}
-                        </span>
-                      )}
-                    </div>
-                    {/* Label area */}
-                    <div className="p-4 flex flex-col gap-1 flex-1">
-                      <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
-                        {CATEGORY_LABEL[p.category] ?? p.category}
-                      </p>
-                      <p className="font-semibold leading-snug line-clamp-2">{p.name}</p>
-                      <div className="mt-auto pt-2 flex items-center justify-between gap-2">
-                        <p className="font-serial text-base font-bold">{formatPrice(p.price)}</p>
-                        {p.colors.length > 0 && (
-                          <div className="flex items-center gap-1">
-                            {p.colors.slice(0, 4).map((c) => (
-                              <span
-                                key={c}
-                                title={c}
-                                className="size-3 rounded-full border border-black/10"
-                                style={{ backgroundColor: colorDot(c) }}
-                              />
-                            ))}
-                            {p.colors.length > 4 && (
-                              <span className="text-[9px] text-muted-foreground">
-                                +{p.colors.length - 4}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </Card>
-                </button>
-              </li>
-            );
-          })}
+          {visible.map((p, i) => (
+            <li
+              key={p.id}
+              className="animate-rise"
+              style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}
+            >
+              <ProductCard product={p} onOpen={() => setSelected(p)} />
+            </li>
+          ))}
         </ul>
       )}
 
       <ProductDialog product={selected} onClose={() => setSelected(null)} contact={contact} />
     </div>
+  );
+}
+
+function ProductCard({ product: p, onOpen }: { product: Product; onOpen: () => void }) {
+  const imgs = productImages(p);
+  const gallery = galleryImages(p);
+  // Clicking a colour dot on the card previews that colour's photo in place.
+  const [previewIdx, setPreviewIdx] = useState<number | null>(null);
+  const shown = (previewIdx !== null && imgs[previewIdx]) || coverImage(p);
+
+  function previewColor(e: React.MouseEvent, colorIdx: number) {
+    e.stopPropagation();
+    if (imgs[colorIdx]) setPreviewIdx(colorIdx);
+  }
+
+  const shownPos = gallery.findIndex(({ url }) => url === shown);
+
+  return (
+    <button onClick={onOpen} className="block w-full text-left group h-full">
+      <Card className="overflow-hidden rounded-2xl border-border/60 shadow-lg shadow-black/[0.04] ring-1 ring-black/[0.02] hover:shadow-xl hover:shadow-black/[0.08] hover:-translate-y-1 hover:border-primary/40 transition-all duration-300 ease-out h-full flex flex-col p-0">
+        {/* Image stage */}
+        <div className="relative aspect-square bg-white border-b border-border/50">
+          {shown ? (
+            <img
+              key={shown}
+              src={shown}
+              alt={p.name}
+              loading="lazy"
+              className="absolute inset-0 size-full object-contain p-4 group-hover:scale-[1.05] transition-transform duration-500 animate-rise"
+            />
+          ) : (
+            <div className="absolute inset-0 grid place-items-center text-muted-foreground/30">
+              <Shirt className="size-12" />
+            </div>
+          )}
+          {gallery.length > 1 && (
+            <span className="absolute bottom-2 right-2 font-serial text-[9px] bg-foreground/80 text-background rounded-full px-2 py-0.5">
+              {Math.max(shownPos, 0) + 1}/{gallery.length}
+            </span>
+          )}
+        </div>
+        {/* Label area */}
+        <div className="p-4 flex flex-col gap-1 flex-1">
+          <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
+            {CATEGORY_LABEL[p.category] ?? p.category}
+          </p>
+          <p className="font-semibold leading-snug line-clamp-2">{p.name}</p>
+          <div className="mt-auto pt-2 flex items-center justify-between gap-2">
+            <p className="font-serial text-base font-bold">{formatPrice(p.price)}</p>
+            {p.colors.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                {p.colors.slice(0, 4).map((c, idx) => (
+                  <span
+                    key={c}
+                    role="button"
+                    tabIndex={0}
+                    title={imgs[idx] ? `View in ${c}` : c}
+                    aria-label={imgs[idx] ? `View in ${c}` : c}
+                    onClick={(e) => previewColor(e, idx)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (imgs[idx]) setPreviewIdx(idx);
+                      }
+                    }}
+                    className={`size-4 rounded-full border transition-all ${
+                      previewIdx === idx
+                        ? "border-primary ring-2 ring-primary/30 scale-110"
+                        : "border-black/10"
+                    } ${imgs[idx] ? "cursor-pointer hover:scale-125" : ""}`}
+                    style={{ backgroundColor: colorDot(c) }}
+                  />
+                ))}
+                {p.colors.length > 4 && (
+                  <span className="text-[9px] text-muted-foreground">+{p.colors.length - 4}</span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
+    </button>
   );
 }
 
@@ -329,7 +355,11 @@ function ProductDetail({
             {gallery.map(({ url, idx }) => (
               <button
                 key={idx}
-                onClick={() => setImgIdx(idx)}
+                onClick={() => {
+                  setImgIdx(idx);
+                  // Keep the colour picker in sync with the photo being viewed.
+                  if (product.colors[idx]) setColor(product.colors[idx]);
+                }}
                 className={`size-14 rounded-lg border-2 overflow-hidden bg-white transition-all ${
                   shownImage === url
                     ? "border-primary shadow-md"
