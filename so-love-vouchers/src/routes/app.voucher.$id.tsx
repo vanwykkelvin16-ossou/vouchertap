@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Clock, Loader2, CheckCircle2, Store } from "lucide-react";
+import { ArrowLeft, Clock, Loader2, CheckCircle2, Store, MapPin, Phone } from "lucide-react";
 import { useCountdown, formatCountdown } from "@/hooks/use-countdown";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -38,6 +38,8 @@ type ClaimDetail = {
     terms: string | null;
     business_name: string | null;
     business_logo_url: string | null;
+    business_phone: string | null;
+    business_address: string | null;
     image_url: string | null;
   } | null;
 };
@@ -55,15 +57,13 @@ function VoucherDetailPage() {
     return () => document.removeEventListener("visibilitychange", onVis);
   }, []);
 
-  
-
   const { data: claim, isLoading } = useQuery({
     queryKey: ["claim", id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("voucher_claims")
         .select(
-          "id, voucher_id, claimed_at, expires_at, redeemed_at, vouchers (id, title, description, value_text, terms, business_name, business_logo_url, image_url)"
+          "id, voucher_id, claimed_at, expires_at, redeemed_at, vouchers (id, title, description, value_text, terms, business_name, business_logo_url, business_phone, business_address, image_url)",
         )
         .eq("id", id)
         .eq("user_id", user!.id)
@@ -79,7 +79,6 @@ function VoucherDetailPage() {
   const expired = cd.expired && !redeemed;
   const active = !!claim && !redeemed && !expired;
 
-
   const redeem = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.rpc("redeem_voucher_claim", {
@@ -93,10 +92,12 @@ function VoucherDetailPage() {
       qc.invalidateQueries({ queryKey: ["claim", id] });
       qc.invalidateQueries({ queryKey: ["my-vouchers"] });
     },
-    onError: (e: any) => {
-      const msg = e?.message ?? "";
+    onError: (e) => {
+      const msg = e.message ?? "";
       if (msg.includes("voucher_not_redeemable")) {
-        toast.error("This voucher can't be redeemed - it may have already been used or has expired.");
+        toast.error(
+          "This voucher can't be redeemed - it may have already been used or has expired.",
+        );
       } else {
         toast.error("Could not redeem voucher. Please try again.");
       }
@@ -125,7 +126,6 @@ function VoucherDetailPage() {
     );
   }
 
-  
   const refRef = (claim?.id ?? "").slice(-4).toUpperCase();
 
   return (
@@ -157,13 +157,9 @@ function VoucherDetailPage() {
                 <p className="text-[11px] uppercase tracking-widest opacity-80">
                   {claim.vouchers?.business_name ?? "So Love Krugersdorp"}
                 </p>
-                <h1 className="text-2xl font-bold leading-tight mt-0.5">
-                  {claim.vouchers?.title}
-                </h1>
+                <h1 className="text-2xl font-bold leading-tight mt-0.5">{claim.vouchers?.title}</h1>
                 {claim.vouchers?.value_text && (
-                  <p className="text-xl font-bold mt-1 opacity-95">
-                    {claim.vouchers.value_text}
-                  </p>
+                  <p className="text-xl font-bold mt-1 opacity-95">{claim.vouchers.value_text}</p>
                 )}
               </div>
             </div>
@@ -171,30 +167,52 @@ function VoucherDetailPage() {
 
           {/* Body */}
           <div className="p-6 space-y-5 relative">
+            {/* Perforated tear line between stub and body */}
+            <div
+              className="ticket-tear !mt-0"
+              style={{ "--tear-inset": "1.5rem" } as Record<string, string>}
+              aria-hidden="true"
+            />
+
+            <div className="flex items-center justify-between">
+              <p className="font-serial text-[11px] text-muted-foreground">
+                Nº SLK-{(claim.id ?? "").slice(0, 4).toUpperCase()}-{refRef}
+              </p>
+              <p className="font-serial text-[11px] text-muted-foreground">
+                {new Date(claim.claimed_at).toLocaleDateString("en-ZA", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </p>
+            </div>
 
             {claim.vouchers?.description && (
-              <p className="text-sm text-foreground/80 relative">
-                {claim.vouchers.description}
-              </p>
+              <p className="text-sm text-foreground/80 relative">{claim.vouchers.description}</p>
             )}
 
             {/* Status (active / expired only) */}
             {!redeemed && (
-              <div className="relative flex items-center justify-between rounded-xl border border-dashed border-border bg-muted/40 px-4 py-3">
-                <div className="text-xs">
-                  <p className="text-muted-foreground uppercase tracking-wider font-medium">
-                    {expired ? "Expired" : "Expires in"}
-                  </p>
-                  <p className="font-bold text-base mt-0.5">
-                    {formatCountdown(cd)}
-                  </p>
-                </div>
-                <Clock className="size-5 text-primary" />
+              <div className="relative rounded-xl border border-dashed border-border bg-muted/40 px-4 py-4 text-center">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-[0.18em] font-semibold inline-flex items-center gap-1.5 justify-center">
+                  <Clock className="size-3.5 text-primary" />
+                  {expired ? "Expired" : "Expires in"}
+                </p>
+                <p className="font-serial text-3xl font-bold mt-1.5 text-foreground">
+                  {formatCountdown(cd)}
+                </p>
               </div>
             )}
 
             {redeemed && (
               <div className="relative space-y-4">
+                {/* Rubber stamp */}
+                <div className="flex justify-center py-2">
+                  <span className="slk-stamp animate-stamp text-primary text-xl md:text-2xl">
+                    Redeemed
+                  </span>
+                </div>
+
                 {/* Redeemed banner */}
                 <div className="rounded-2xl border border-emerald-600/30 bg-emerald-50 dark:bg-emerald-950/30 px-5 py-4">
                   <div className="flex items-center gap-3">
@@ -206,7 +224,8 @@ function VoucherDetailPage() {
                         Voucher redeemed
                       </p>
                       <p className="text-sm font-semibold text-foreground mt-0.5 truncate">
-                        Thanks for visiting{claim.vouchers?.business_name ? ` ${claim.vouchers.business_name}` : ""}
+                        Thanks for visiting
+                        {claim.vouchers?.business_name ? ` ${claim.vouchers.business_name}` : ""}
                       </p>
                     </div>
                   </div>
@@ -237,6 +256,52 @@ function VoucherDetailPage() {
               </div>
             )}
 
+            {(claim.vouchers?.business_address || claim.vouchers?.business_phone) && (
+              <div className="relative pt-3 border-t border-dashed space-y-2.5">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                  Where to redeem
+                </p>
+                {claim.vouchers?.business_name && (
+                  <div className="flex items-center gap-2.5">
+                    <span className="grid place-items-center size-7 rounded-lg bg-primary/10 text-primary shrink-0">
+                      <Store className="size-3.5" />
+                    </span>
+                    <span className="text-sm font-medium">{claim.vouchers.business_name}</span>
+                  </div>
+                )}
+                {claim.vouchers?.business_address && (
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                      claim.vouchers.business_address,
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-2.5 group"
+                  >
+                    <span className="grid place-items-center size-7 rounded-lg bg-primary/10 text-primary shrink-0">
+                      <MapPin className="size-3.5" />
+                    </span>
+                    <span className="text-sm font-medium group-hover:text-primary group-hover:underline">
+                      {claim.vouchers.business_address}
+                    </span>
+                  </a>
+                )}
+                {claim.vouchers?.business_phone && (
+                  <a
+                    href={`tel:${claim.vouchers.business_phone.replace(/\s+/g, "")}`}
+                    className="flex items-center gap-2.5 group"
+                  >
+                    <span className="grid place-items-center size-7 rounded-lg bg-primary/10 text-primary shrink-0">
+                      <Phone className="size-3.5" />
+                    </span>
+                    <span className="text-sm font-medium tabular-nums group-hover:text-primary group-hover:underline">
+                      {claim.vouchers.business_phone}
+                    </span>
+                  </a>
+                )}
+              </div>
+            )}
+
             {claim.vouchers?.terms && (
               <div className="relative pt-3 border-t border-dashed">
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
@@ -261,8 +326,8 @@ function VoucherDetailPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Redeem in front of staff?</AlertDialogTitle>
               <AlertDialogDescription>
-                Only tap "Confirm" when a staff member is present. This will mark the
-                voucher as used and cannot be undone.
+                Only tap "Confirm" when a staff member is present. This will mark the voucher as
+                used and cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -274,11 +339,7 @@ function VoucherDetailPage() {
                 }}
                 disabled={redeem.isPending}
               >
-                {redeem.isPending ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  "Confirm redeem"
-                )}
+                {redeem.isPending ? <Loader2 className="size-4 animate-spin" /> : "Confirm redeem"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -305,7 +366,9 @@ function DetailRow({ label, value, mono }: { label: string; value: string; mono?
       <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
         {label}
       </span>
-      <span className={`text-sm font-semibold text-foreground ${mono ? "font-mono tracking-wider" : ""}`}>
+      <span
+        className={`text-sm font-semibold text-foreground ${mono ? "font-mono tracking-wider" : ""}`}
+      >
         {value}
       </span>
     </div>

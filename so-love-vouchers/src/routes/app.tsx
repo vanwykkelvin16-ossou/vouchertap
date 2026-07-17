@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, Link, useNavigate, useLocation } from "@tansta
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useIsAdmin } from "@/hooks/use-is-admin";
+import { useProfile } from "@/hooks/use-profile";
 import { hasAccess } from "@/lib/access-code";
 import { isMemberDisabled } from "@/lib/member-status";
 import { toast } from "sonner";
@@ -11,10 +12,10 @@ import {
   BadgeCheck,
   User as UserIcon,
   Loader2,
-  Heart,
   LayoutDashboard,
-  Phone,
+  ShoppingBag,
 } from "lucide-react";
+import { BrandHeart } from "@/components/brand-heart";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/app")({
@@ -25,15 +26,28 @@ const TABS = [
   { to: "/app/events", label: "Events", icon: CalendarDays },
   { to: "/app/vouchers", label: "Vouchers", icon: TicketPercent },
   { to: "/app/my-vouchers", label: "Mine", icon: BadgeCheck },
-  { to: "/app/contact", label: "Contact", icon: Phone },
+  { to: "/app/shop", label: "Shop", icon: ShoppingBag },
   { to: "/app/profile", label: "Profile", icon: UserIcon },
 ] as const;
 
 function AppLayout() {
   const { session, loading, user, signOut } = useAuth();
   const { data: isAdmin } = useIsAdmin();
+  const profileQuery = useProfile();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // A member must complete the 2-step onboarding once before entering the
+  // app. Admins are exempt (backfilled as completed by migration). A missing
+  // profile row also counts as "needs onboarding" — the wizard self-heals it.
+  // Strict `=== null` matters: if the onboarding migration hasn't been applied
+  // to the live DB yet, the column is absent (undefined) and we must NOT gate,
+  // otherwise members would be locked behind a wizard that can't save.
+  const needsOnboarding =
+    !!session &&
+    !profileQuery.isPending &&
+    !profileQuery.isError &&
+    (profileQuery.data == null || profileQuery.data.onboarding_completed_at === null);
 
   useEffect(() => {
     if (!hasAccess()) {
@@ -44,6 +58,12 @@ function AppLayout() {
       navigate({ to: "/login" });
     }
   }, [session, loading, navigate]);
+
+  useEffect(() => {
+    if (needsOnboarding) {
+      navigate({ to: "/onboarding", replace: true });
+    }
+  }, [needsOnboarding, navigate]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -60,7 +80,7 @@ function AppLayout() {
     };
   }, [user?.id, signOut, navigate]);
 
-  if (loading || !session) {
+  if (loading || !session || (profileQuery.isPending && !profileQuery.data) || needsOnboarding) {
     return (
       <div className="min-h-dvh grid place-items-center">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
@@ -75,15 +95,13 @@ function AppLayout() {
         <div className="p-6 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="size-10 rounded-xl bg-primary text-primary-foreground grid place-items-center shadow-md shadow-primary/20">
-              <Heart className="size-5 fill-current" />
+              <BrandHeart className="size-5" />
             </div>
             <div>
               <p className="text-[11px] uppercase tracking-widest text-primary font-semibold leading-none">
                 Members
               </p>
-              <h1 className="text-base font-bold leading-tight mt-1">
-                So Love Krugersdorp
-              </h1>
+              <h1 className="text-base font-bold leading-tight mt-1">So Love Krugersdorp</h1>
             </div>
           </div>
         </div>
@@ -167,7 +185,7 @@ function AppLayout() {
                     "grid place-items-center size-11 rounded-full transition-colors",
                     active
                       ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   <Icon className="size-5" strokeWidth={active ? 2.5 : 2} />
@@ -184,7 +202,7 @@ function AppLayout() {
                   "grid place-items-center size-11 rounded-full transition-colors",
                   location.pathname.startsWith("/admin")
                     ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 <LayoutDashboard className="size-5" />
@@ -193,7 +211,6 @@ function AppLayout() {
           )}
         </ul>
       </nav>
-
     </div>
   );
 }

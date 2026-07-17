@@ -1,18 +1,29 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  ModalBody,
+  FormSection,
+  Field,
+  FieldRow,
+  DateTimeField,
+  ToggleRow,
+  ModalFooter,
+} from "@/components/admin/form-kit";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,23 +36,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ImageUploader } from "@/components/image-uploader";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
-import { AdminEmptyState } from "@/components/admin/admin-empty-state";
-import { AdminResourceCard } from "@/components/admin/admin-resource-card";
-import { AdminSearchBar } from "@/components/admin/admin-search-bar";
-import {
-  AdminFormSection,
-  AdminFormDivider,
-  AdminField,
-  AdminDatetimeField,
-  AdminStatusToggle,
-  AdminFormNotice,
-} from "@/components/admin/admin-form";
-import { Plus, Loader2, Ticket, Clock } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Ticket, Repeat } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { broadcastPush } from "@/lib/push.functions";
-import type { Database } from "@/integrations/supabase/types";
 
 export const Route = createFileRoute("/admin/vouchers")({
   component: AdminVouchersPage,
@@ -62,6 +60,7 @@ type VoucherRow = {
   available_from: string;
   available_until: string | null;
   is_active: boolean;
+  is_recurring: boolean;
 };
 
 type EditState = Partial<VoucherRow> & {
@@ -71,8 +70,6 @@ type EditState = Partial<VoucherRow> & {
   available_until_date?: string;
   available_until_time?: string;
 };
-
-type VoucherPayload = Database["public"]["Tables"]["vouchers"]["Insert"];
 
 const empty: EditState = {
   __open: true,
@@ -110,16 +107,11 @@ function combineDatetime(date: string, time: string): string {
   return `${date}T${time || "00:00"}`;
 }
 
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
-}
-
 function AdminVouchersPage() {
   const qc = useQueryClient();
   useRealtimeInvalidate("vouchers", [["admin-vouchers"]]);
   const [edit, setEdit] = useState<EditState | null>(null);
   const [deleting, setDeleting] = useState<VoucherRow | null>(null);
-  const [search, setSearch] = useState("");
   const sendPush = useServerFn(broadcastPush);
 
   const { data, isLoading } = useQuery({
@@ -134,23 +126,11 @@ function AdminVouchersPage() {
     },
   });
 
-  const filtered = useMemo(() => {
-    if (!data) return [];
-    const q = search.trim().toLowerCase();
-    if (!q) return data;
-    return data.filter(
-      (v) =>
-        v.title.toLowerCase().includes(q) ||
-        v.business_name?.toLowerCase().includes(q) ||
-        v.value_text?.toLowerCase().includes(q),
-    );
-  }, [data, search]);
-
   const save = useMutation({
     mutationFn: async (e: EditState) => {
       const fromStr = combineDatetime(e.available_from_date ?? "", e.available_from_time ?? "");
       const untilStr = combineDatetime(e.available_until_date ?? "", e.available_until_time ?? "");
-      const payload: VoucherPayload = {
+      const payload = {
         title: (e.title ?? "").trim(),
         description: e.description || null,
         value_text: e.value_text || null,
@@ -164,6 +144,7 @@ function AdminVouchersPage() {
         available_from: fromStr ? new Date(fromStr).toISOString() : new Date().toISOString(),
         available_until: untilStr ? new Date(untilStr).toISOString() : null,
         is_active: e.is_active ?? true,
+        is_recurring: e.is_recurring ?? false,
       };
       if (!payload.title) throw new Error("Title is required");
       const isNew = !e.id;
@@ -175,6 +156,7 @@ function AdminVouchersPage() {
         if (error) throw error;
       }
 
+      // Auto-send push notification when a new active voucher is created
       if (isNew && payload.is_active) {
         const title = `New voucher: ${payload.title}`;
         const body = payload.value_text
@@ -191,17 +173,19 @@ function AdminVouchersPage() {
             },
           });
           toast.success(`Notification sent to ${res.sent} device${res.sent === 1 ? "" : "s"}`);
-        } catch (error: unknown) {
-          toast.error(`Notification not sent: ${errorMessage(error, "unknown error")}`);
+        } catch (err) {
+          toast.error(
+            `Notification not sent: ${err instanceof Error ? err.message : "unknown error"}`,
+          );
         }
       }
     },
     onSuccess: () => {
-      toast.success("Voucher saved");
+      toast.success("Saved");
       qc.invalidateQueries({ queryKey: ["admin-vouchers"] });
       setEdit(null);
     },
-    onError: (error: unknown) => toast.error(errorMessage(error, "Failed to save")),
+    onError: (e) => toast.error(e.message || "Failed to save"),
   });
 
   const del = useMutation({
@@ -210,244 +194,276 @@ function AdminVouchersPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Voucher deleted");
+      toast.success("Deleted");
       qc.invalidateQueries({ queryKey: ["admin-vouchers"] });
       setDeleting(null);
     },
-    onError: (error: unknown) => toast.error(errorMessage(error, "Failed to delete")),
+    onError: (e) => toast.error(e.message || "Failed to delete"),
   });
-
-  const openCreate = () => setEdit(empty);
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader
-        title="Vouchers"
-        description="Create member vouchers with offer details, availability windows, and business branding."
-        count={data?.length}
-        countLabel={data?.length === 1 ? "voucher" : "vouchers"}
-        action={{ label: "New voucher", icon: Plus, onClick: openCreate }}
-      />
-
-      {!isLoading && data && data.length > 0 && (
-        <AdminSearchBar
-          value={search}
-          onChange={setSearch}
-          placeholder="Search by title, business, or offer…"
-        />
-      )}
+      <header className="flex items-end justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-widest text-primary font-semibold">Admin</p>
+          <h1 className="text-3xl font-bold mt-1">Vouchers</h1>
+        </div>
+        <Button onClick={() => setEdit(empty)}>
+          <Plus className="size-4 mr-1.5" /> New voucher
+        </Button>
+      </header>
 
       {isLoading ? (
-        <div className="py-16 grid place-items-center">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <div className="py-10 grid place-items-center">
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
       ) : !data || data.length === 0 ? (
-        <AdminEmptyState
-          icon={Ticket}
-          title="No vouchers yet"
-          description="Create your first voucher to make it available to members. Add the business logo, offer value, and claim window."
-          action={{ label: "Create first voucher", onClick: openCreate }}
-        />
-      ) : filtered.length === 0 ? (
-        <AdminEmptyState
-          icon={Ticket}
-          title="No matching vouchers"
-          description={`Nothing matches "${search}". Try a different search term.`}
-        />
+        <Card className="p-8 text-center border-dashed">
+          <p className="font-semibold">No vouchers yet</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Create your first voucher to make it available to members.
+          </p>
+        </Card>
       ) : (
-        <ul className="grid gap-3 lg:grid-cols-2">
-          {filtered.map((v) => (
+        <ul className="grid gap-3">
+          {data.map((v) => (
             <li key={v.id}>
-              <AdminResourceCard
-                title={v.title}
-                subtitle={v.business_name ?? undefined}
-                imageUrl={v.image_url}
-                fallbackIcon={Ticket}
-                badges={[
-                  ...(v.value_text ? [{ label: v.value_text, variant: "default" as const }] : []),
-                  ...(!v.is_active ? [{ label: "Inactive", variant: "secondary" as const }] : []),
-                ]}
-                meta={
-                  <span className="inline-flex items-center gap-1">
-                    <Clock className="size-3 shrink-0" />
-                    {v.claim_window_hours}h to redeem · from{" "}
+              <Card className="p-4 flex items-center gap-4">
+                <div className="size-16 rounded-md bg-muted overflow-hidden flex-shrink-0">
+                  {v.image_url ? (
+                    <img src={v.image_url} alt="" className="size-full object-cover" />
+                  ) : (
+                    <div className="size-full grid place-items-center text-muted-foreground">
+                      <Ticket className="size-5" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold truncate">{v.title}</h3>
+                    {!v.is_active && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        Inactive
+                      </Badge>
+                    )}
+                    {v.value_text && (
+                      <Badge className="text-[10px] bg-primary text-primary-foreground">
+                        {v.value_text}
+                      </Badge>
+                    )}
+                    {v.is_recurring && (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] gap-1 border-primary/40 text-primary"
+                      >
+                        <Repeat className="size-3" /> Monthly
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {v.claim_window_hours}h to redeem · available from{" "}
                     {new Date(v.available_from).toLocaleDateString()}
-                  </span>
-                }
-                onEdit={() => {
-                  const af = toLocalInput(v.available_from);
-                  const au = toLocalInput(v.available_until);
-                  setEdit({
-                    __open: true,
-                    ...v,
-                    available_from_date: af.date,
-                    available_from_time: af.time,
-                    available_until_date: au.date,
-                    available_until_time: au.time,
-                  });
-                }}
-                onDelete={() => setDeleting(v)}
-              />
+                  </p>
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => {
+                      const af = toLocalInput(v.available_from);
+                      const au = toLocalInput(v.available_until);
+                      setEdit({
+                        __open: true,
+                        ...v,
+                        available_from_date: af.date,
+                        available_from_time: af.time,
+                        available_until_date: au.date,
+                        available_until_time: au.time,
+                      });
+                    }}
+                  >
+                    <Pencil className="size-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="text-destructive"
+                    onClick={() => setDeleting(v)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              </Card>
             </li>
           ))}
         </ul>
       )}
 
       <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)}>
-        <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto p-0 gap-0">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b bg-muted/20">
-            <DialogTitle className="text-xl">
+        <DialogContent className="max-w-lg sm:max-w-2xl lg:max-w-3xl max-h-[92vh] flex flex-col gap-0 p-0 overflow-hidden rounded-3xl border-0 shadow-2xl shadow-black/20">
+          <DialogHeader className="px-6 md:px-8 py-5 border-b border-border/60 bg-background/85 backdrop-blur-xl shrink-0 text-left">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-primary font-semibold">
+              Vouchers
+            </p>
+            <DialogTitle
+              className="text-2xl tracking-tight"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
               {edit?.id ? "Edit voucher" : "New voucher"}
             </DialogTitle>
-            <DialogDescription>
-              {edit?.id
-                ? "Update voucher details. Changes go live for all members immediately."
-                : "Set up the offer, business info, and availability. Members can claim once active."}
-            </DialogDescription>
+            <DialogDescription>Changes are pushed live to every member's app.</DialogDescription>
           </DialogHeader>
           {edit && (
-            <div className="px-6 py-5 space-y-6">
-              <AdminFormSection
-                title="Business"
-                description="Shown on the voucher card and redemption screen."
-              >
-                <div className="grid sm:grid-cols-[auto_1fr] gap-5 items-start rounded-xl border bg-muted/20 p-4">
+            <ModalBody>
+              <FormSection title="Business">
+                <div className="grid grid-cols-[auto_1fr] gap-4 items-start p-4 rounded-xl bg-muted/30 border border-dashed">
                   <ImageUploader
                     value={edit.business_logo_url}
                     onChange={(url) => setEdit({ ...edit, business_logo_url: url })}
                     folder="business-logos"
                     shape="circle"
-                    label="Upload logo"
+                    label="Business logo"
                   />
-                  <AdminField label="Business name">
+                  <Field
+                    label="Business name"
+                    hint="Appears on the voucher card and the redemption screen."
+                  >
                     <Input
                       placeholder="e.g. Bella Vista Cafe"
                       value={edit.business_name ?? ""}
                       onChange={(e) => setEdit({ ...edit, business_name: e.target.value })}
                     />
-                  </AdminField>
-                  <AdminField label="Phone">
+                  </Field>
+                </div>
+                <FieldRow>
+                  <Field label="Business tel" hint="Shown to the customer after they claim.">
                     <Input
                       type="tel"
-                      placeholder="e.g. 011 123 4567"
+                      placeholder="e.g. 011 000 0000"
+                      className="tabular-nums"
                       value={edit.business_phone ?? ""}
                       onChange={(e) => setEdit({ ...edit, business_phone: e.target.value })}
                     />
-                  </AdminField>
-                  <AdminField label="Address">
+                  </Field>
+                  <Field label="Address" hint="Where the customer redeems it.">
                     <Input
                       placeholder="e.g. 12 Main Rd, Krugersdorp"
                       value={edit.business_address ?? ""}
                       onChange={(e) => setEdit({ ...edit, business_address: e.target.value })}
                     />
-                  </AdminField>
-                </div>
-              </AdminFormSection>
+                  </Field>
+                </FieldRow>
+              </FormSection>
 
-              <AdminFormDivider />
-
-              <AdminFormSection title="Offer details">
-                <AdminField label="Cover image">
+              <FormSection title="The offer">
+                <Field label="Cover image" hint="The whole image is shown — no cropping.">
                   <ImageUploader
                     value={edit.image_url}
                     onChange={(url) => setEdit({ ...edit, image_url: url })}
                     folder="vouchers"
-                    label="Upload voucher image"
+                    fit="contain"
                   />
-                </AdminField>
-                <AdminField label="Title" required>
-                  <Input
-                    placeholder="e.g. Free coffee with any breakfast"
-                    value={edit.title ?? ""}
-                    onChange={(e) => setEdit({ ...edit, title: e.target.value })}
-                  />
-                </AdminField>
-                <AdminField label="Value / offer text">
-                  <Input
-                    placeholder="e.g. R50 off · Free coffee · 20% off"
-                    value={edit.value_text ?? ""}
-                    onChange={(e) => setEdit({ ...edit, value_text: e.target.value })}
-                  />
-                </AdminField>
-                <AdminField label="Description">
+                </Field>
+                <FieldRow>
+                  <Field label="Title" required>
+                    <Input
+                      placeholder="e.g. Free coffee on us"
+                      value={edit.title ?? ""}
+                      onChange={(e) => setEdit({ ...edit, title: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="Value / offer text">
+                    <Input
+                      placeholder="e.g. R50 off · Free coffee · 20% off"
+                      value={edit.value_text ?? ""}
+                      onChange={(e) => setEdit({ ...edit, value_text: e.target.value })}
+                    />
+                  </Field>
+                </FieldRow>
+                <Field label="Description">
                   <Textarea
                     rows={3}
-                    placeholder="Short summary members see before claiming"
+                    placeholder="What the member gets and how to use it..."
                     value={edit.description ?? ""}
                     onChange={(e) => setEdit({ ...edit, description: e.target.value })}
                   />
-                </AdminField>
-                <AdminField label="Terms & conditions">
+                </Field>
+                <Field label="Terms &amp; conditions">
                   <Textarea
                     rows={2}
-                    placeholder="Any restrictions or fine print"
+                    placeholder="Any limits, exclusions or fine print..."
                     value={edit.terms ?? ""}
                     onChange={(e) => setEdit({ ...edit, terms: e.target.value })}
                   />
-                </AdminField>
-              </AdminFormSection>
+                </Field>
+              </FormSection>
 
-              <AdminFormDivider />
-
-              <AdminFormSection
-                title="Availability"
-                description="Control when members can claim and how long they have to redeem."
-              >
-                <AdminField
-                  label="Claim window (hours)"
-                  hint="Time the member has to redeem after claiming. Default is 48 hours."
-                >
-                  <Input
-                    type="number"
-                    min={1}
-                    value={edit.claim_window_hours ?? 48}
-                    onChange={(e) =>
-                      setEdit({ ...edit, claim_window_hours: Number(e.target.value) })
-                    }
+              <FormSection title="Availability">
+                <div className="grid gap-4 md:grid-cols-3">
+                  <Field
+                    label="Claim window (hours)"
+                    hint="Time to redeem after claiming. Default 48h."
+                  >
+                    <Input
+                      type="number"
+                      min={1}
+                      value={edit.claim_window_hours ?? 48}
+                      onChange={(e) =>
+                        setEdit({ ...edit, claim_window_hours: Number(e.target.value) })
+                      }
+                    />
+                  </Field>
+                  <DateTimeField
+                    label="Available from"
+                    dateValue={edit.available_from_date ?? ""}
+                    timeValue={edit.available_from_time ?? ""}
+                    onDate={(v) => setEdit({ ...edit, available_from_date: v })}
+                    onTime={(v) => setEdit({ ...edit, available_from_time: v })}
                   />
-                </AdminField>
-                <AdminDatetimeField
-                  label="Available from"
-                  date={edit.available_from_date ?? ""}
-                  time={edit.available_from_time ?? ""}
-                  onDateChange={(v) => setEdit({ ...edit, available_from_date: v })}
-                  onTimeChange={(v) => setEdit({ ...edit, available_from_time: v })}
-                />
-                <AdminDatetimeField
-                  label="Available until"
-                  date={edit.available_until_date ?? ""}
-                  time={edit.available_until_time ?? ""}
-                  onDateChange={(v) => setEdit({ ...edit, available_until_date: v })}
-                  onTimeChange={(v) => setEdit({ ...edit, available_until_time: v })}
-                />
-              </AdminFormSection>
+                  <DateTimeField
+                    label="Available until"
+                    dateValue={edit.available_until_date ?? ""}
+                    timeValue={edit.available_until_time ?? ""}
+                    onDate={(v) => setEdit({ ...edit, available_until_date: v })}
+                    onTime={(v) => setEdit({ ...edit, available_until_time: v })}
+                  />
+                </div>
 
-              <AdminFormDivider />
-
-              <AdminStatusToggle
-                id="active"
-                label="Active"
-                description="Inactive vouchers are hidden from the member app."
-                checked={edit.is_active ?? true}
-                onCheckedChange={(v) => setEdit({ ...edit, is_active: v })}
-              />
-
-              {!edit.id && (
-                <AdminFormNotice>
-                  A push notification is sent automatically to opted-in members when you create a
-                  new active voucher.
-                </AdminFormNotice>
-              )}
-            </div>
+                <ToggleRow
+                  label="Recurring monthly"
+                  description="Re-opens for every member at the start of each month — even after they've used it. Perfect for a standing member benefit."
+                >
+                  <Switch
+                    id="recurring"
+                    checked={edit.is_recurring ?? false}
+                    onCheckedChange={(v) => setEdit({ ...edit, is_recurring: v })}
+                  />
+                </ToggleRow>
+                <ToggleRow label="Active" description="Visible and claimable in the member app.">
+                  <Switch
+                    id="active"
+                    checked={edit.is_active ?? true}
+                    onCheckedChange={(v) => setEdit({ ...edit, is_active: v })}
+                  />
+                </ToggleRow>
+                <p className="text-[11px] text-muted-foreground italic">
+                  A push notification is sent automatically to all opted-in members when you create
+                  a new active voucher.
+                </p>
+              </FormSection>
+            </ModalBody>
           )}
-          <DialogFooter className="px-6 py-4 border-t bg-muted/20">
-            <Button variant="outline" onClick={() => setEdit(null)}>
-              Cancel
-            </Button>
-            <Button onClick={() => edit && save.mutate(edit)} disabled={save.isPending}>
-              {save.isPending ? <Loader2 className="size-4 animate-spin" /> : "Save voucher"}
-            </Button>
-          </DialogFooter>
+          <ModalFooter
+            hint={
+              edit?.id
+                ? "Saving updates the live voucher instantly."
+                : "Publishing makes it claimable right away."
+            }
+            onCancel={() => setEdit(null)}
+            onSave={() => edit && save.mutate(edit)}
+            saving={save.isPending}
+            saveLabel={edit?.id ? "Save changes" : "Publish voucher"}
+          />
         </DialogContent>
       </Dialog>
 

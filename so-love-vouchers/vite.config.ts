@@ -12,4 +12,9 @@ export default defineConfig({
   tanstackStart: {
     server: { entry: "server" },
   },
+  // Required for Cloudflare Workers Builds (GitHub CI): without an explicit
+  // `nitro: true`, nitro only auto-runs inside Lovable's own build context, so
+  // CI builds never emit dist/server/wrangler.json and `npm run deploy` fails
+  // instantly ("config not found"). Do not remove.
+  nitro: true,
 });

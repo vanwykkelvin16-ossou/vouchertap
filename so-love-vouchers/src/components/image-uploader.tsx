@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Loader2, Upload, X, ImageIcon, User as UserIcon } from "lucide-react";
@@ -11,15 +11,43 @@ export function ImageUploader({
   folder,
   shape = "rect",
   label,
+  fit = "cover",
 }: {
   value: string | null | undefined;
   onChange: (url: string | null) => void;
   folder: string;
   shape?: "rect" | "circle";
   label?: string;
+  /** "contain" shows the whole image (no cropping) in a shorter block. */
+  fit?: "cover" | "contain";
 }) {
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Right after upload the CDN can lag a moment behind the returned public
+  // URL, so a fresh image sometimes 404s on first paint. Retry a few times
+  // with a cache-buster before giving up, so the preview always appears.
+  const [previewSrc, setPreviewSrc] = useState<string | null | undefined>(value);
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const retriesRef = useRef(0);
+  useEffect(() => {
+    setPreviewSrc(value);
+    setPreviewFailed(false);
+    retriesRef.current = 0;
+  }, [value]);
+
+  function onPreviewError() {
+    if (!value) return;
+    if (retriesRef.current < 4) {
+      retriesRef.current += 1;
+      const delay = 500 * retriesRef.current;
+      setTimeout(() => {
+        setPreviewSrc(`${value}${value.includes("?") ? "&" : "?"}r=${Date.now()}`);
+      }, delay);
+    } else {
+      setPreviewFailed(true);
+    }
+  }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -56,7 +84,12 @@ export function ImageUploader({
             )}
           >
             {value ? (
-              <img src={value} alt="" className="size-full object-cover" />
+              <img
+                src={previewSrc ?? value}
+                alt=""
+                onError={onPreviewError}
+                className="size-full object-cover"
+              />
             ) : (
               <UserIcon className="size-10 text-muted-foreground/60" />
             )}
@@ -91,17 +124,41 @@ export function ImageUploader({
           ) : (
             <Upload className="size-3.5 mr-2" />
           )}
-          {value ? "Change photo" : label ?? "Upload photo"}
+          {value ? "Change photo" : (label ?? "Upload photo")}
         </Button>
       </div>
     );
   }
 
+  const contain = fit === "contain";
+  const boxHeight = contain ? "h-28" : "h-40";
   return (
     <div className="space-y-2">
       {value ? (
-        <div className="relative w-full h-40 rounded-lg overflow-hidden bg-muted border border-border">
-          <img src={value} alt="" className="w-full h-full object-cover" />
+        <div
+          className={cn(
+            "relative w-full rounded-lg overflow-hidden border border-border",
+            boxHeight,
+            contain ? "bg-white" : "bg-muted",
+          )}
+        >
+          <img
+            src={previewSrc ?? value}
+            alt=""
+            onError={onPreviewError}
+            className={cn(
+              "w-full h-full",
+              contain ? "object-contain p-1.5" : "object-cover",
+              previewFailed && "opacity-0",
+            )}
+          />
+          {previewFailed && (
+            <div className="absolute inset-0 grid place-items-center bg-muted/40 text-center px-3">
+              <span className="text-[11px] text-muted-foreground">
+                Uploaded — preview still loading. It will show in the app.
+              </span>
+            </div>
+          )}
           <button
             type="button"
             onClick={() => onChange(null)}
@@ -111,18 +168,17 @@ export function ImageUploader({
           </button>
         </div>
       ) : (
-        <div className="w-full h-40 rounded-lg border-2 border-dashed border-border bg-muted/30 flex flex-col items-center justify-center text-muted-foreground">
+        <div
+          className={cn(
+            "w-full rounded-lg border-2 border-dashed border-border bg-muted/30 flex flex-col items-center justify-center text-muted-foreground",
+            boxHeight,
+          )}
+        >
           <ImageIcon className="size-8 mb-1 opacity-50" />
           <span className="text-xs">{label ?? "No image"}</span>
         </div>
       )}
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleFile}
-      />
+      <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
       <Button
         type="button"
         variant="outline"
@@ -136,7 +192,7 @@ export function ImageUploader({
         ) : (
           <Upload className="size-4 mr-2" />
         )}
-        {value ? "Replace image" : label ?? "Upload image"}
+        {value ? "Replace image" : (label ?? "Upload image")}
       </Button>
     </div>
   );

@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, Link, useNavigate, useLocation } from "@tansta
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useIsAdmin } from "@/hooks/use-is-admin";
+import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -12,7 +13,7 @@ import {
   Phone,
   Loader2,
   ArrowLeft,
-  Sparkles,
+  ShoppingBag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isMemberDisabled } from "@/lib/member-status";
@@ -22,11 +23,25 @@ export const Route = createFileRoute("/admin")({
   component: AdminLayout,
 });
 
-const NAV: { to: string; label: string; icon: any; exact?: boolean }[] = [
+const NAV: {
+  to:
+    | "/admin"
+    | "/admin/events"
+    | "/admin/breakfast"
+    | "/admin/vouchers"
+    | "/admin/shop"
+    | "/admin/redemptions"
+    | "/admin/members"
+    | "/admin/contact";
+  label: string;
+  icon: LucideIcon;
+  exact?: boolean;
+}[] = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/admin/events", label: "Events", icon: CalendarDays },
   { to: "/admin/breakfast", label: "Breakfast", icon: Coffee },
   { to: "/admin/vouchers", label: "Vouchers", icon: Ticket },
+  { to: "/admin/shop", label: "Shop", icon: ShoppingBag },
   { to: "/admin/redemptions", label: "Redemptions", icon: Receipt },
   { to: "/admin/members", label: "Members", icon: Users },
   { to: "/admin/contact", label: "Contact", icon: Phone },
@@ -65,50 +80,20 @@ function AdminLayout() {
 
   if (loading || roleLoading || !session || !isAdmin) {
     return (
-      <div className="min-h-dvh grid place-items-center bg-muted/30">
+      <div className="min-h-dvh grid place-items-center">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
-  const currentPage = NAV.find((n) =>
-    n.exact ? location.pathname === n.to : location.pathname.startsWith(n.to),
-  );
-
   return (
-    <div className="min-h-dvh bg-[linear-gradient(160deg,hsl(var(--muted)/0.45)_0%,hsl(var(--background))_45%)] flex flex-col md:flex-row">
-      <aside className="md:w-64 md:min-h-dvh md:sticky md:top-0 md:self-start bg-background/80 backdrop-blur-md border-b md:border-b-0 md:border-r border-border/80 flex md:flex-col shadow-sm">
-        <div className="hidden md:block p-5 border-b border-border/60">
-          <div className="flex items-center gap-2.5">
-            <div className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-              <Sparkles className="size-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                Admin portal
-              </p>
-              <h1 className="text-sm font-bold leading-tight truncate">So Love Krugersdorp</h1>
-            </div>
-          </div>
+    <div className="min-h-dvh bg-muted/30 flex flex-col md:flex-row">
+      <aside className="md:w-60 md:min-h-dvh bg-background border-b md:border-b-0 md:border-r border-border flex md:flex-col">
+        <div className="hidden md:block p-5 border-b border-border">
+          <p className="text-xs uppercase tracking-widest text-primary font-semibold">Admin</p>
+          <h1 className="text-lg font-bold mt-1 leading-tight">So Love Krugersdorp</h1>
         </div>
-
-        <div className="md:hidden px-4 py-3 border-b border-border/60 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-              Admin
-            </p>
-            <p className="text-sm font-semibold">{currentPage?.label ?? "Portal"}</p>
-          </div>
-          <Link
-            to="/app/vouchers"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          >
-            <ArrowLeft className="size-3.5" />
-            App
-          </Link>
-        </div>
-
-        <nav className="flex-1 flex md:flex-col gap-0.5 p-2 overflow-x-auto md:overflow-x-visible">
+        <nav className="flex-1 flex md:flex-col gap-1 p-2 overflow-x-auto md:overflow-x-visible">
           {NAV.map((n) => {
             const active = n.exact
               ? location.pathname === n.to
@@ -117,36 +102,32 @@ function AdminLayout() {
             return (
               <Link
                 key={n.to}
-                to={n.to as any}
+                to={n.to}
                 className={cn(
-                  "relative flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all",
+                  "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors",
                   active
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/70",
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
                 )}
               >
-                {active && (
-                  <span className="hidden md:block absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-primary-foreground/40" />
-                )}
-                <Icon className="size-4 shrink-0" />
+                <Icon className="size-4" />
                 {n.label}
               </Link>
             );
           })}
         </nav>
-
-        <div className="hidden md:block p-3 border-t border-border/60">
+        <div className="hidden md:block p-2 border-t border-border">
           <Link
             to="/app/vouchers"
-            className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+            className="flex items-center gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted"
           >
             <ArrowLeft className="size-3.5" />
-            Back to member app
+            Back to app
           </Link>
         </div>
       </aside>
 
-      <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-6xl w-full mx-auto">
+      <main className="flex-1 p-5 md:p-8 max-w-5xl w-full mx-auto">
         <Outlet />
       </main>
     </div>

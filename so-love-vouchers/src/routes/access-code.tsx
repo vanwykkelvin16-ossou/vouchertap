@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { grantAccess, hasAccess } from "@/lib/access-code";
 import { toast } from "sonner";
-import { Heart } from "lucide-react";
+import {} from "lucide-react";
+import { BrandHeart } from "@/components/brand-heart";
 
 export const Route = createFileRoute("/access-code")({
   component: AccessCodePage,
@@ -36,11 +37,14 @@ function AccessCodePage() {
     <main className="min-h-dvh flex flex-col items-center justify-center bg-background px-6 py-10">
       <div className="w-full max-w-sm flex flex-col items-center text-center">
         <div className="size-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/20 mb-6">
-          <Heart className="size-8 fill-current" />
+          <BrandHeart className="size-8" />
         </div>
+        <p className="text-[11px] uppercase tracking-[0.22em] text-primary font-semibold mb-2">
+          Members only
+        </p>
         <h1 className="text-3xl font-bold">So Love Krugersdorp</h1>
         <p className="text-muted-foreground mt-2 mb-10 text-sm">
-          Enter your members-only access code to continue.
+          Enter your access code to step inside.
         </p>
 
         <form onSubmit={handleSubmit} className="w-full flex flex-col items-center gap-6">
@@ -56,7 +60,7 @@ function AccessCodePage() {
                 <InputOTPSlot
                   key={i}
                   index={i}
-                  className="size-11 text-lg font-semibold uppercase"
+                  className="size-11 text-lg font-serial font-semibold uppercase"
                 />
               ))}
             </InputOTPGroup>

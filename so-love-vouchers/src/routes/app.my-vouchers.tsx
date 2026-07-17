@@ -28,7 +28,7 @@ type ClaimRow = {
   } | null;
 };
 
-type FilterTab = "all" | "used" | "pending";
+type FilterTab = "all" | "used" | "pending" | "expired";
 
 function MyVouchersPage() {
   const { user } = useAuth();
@@ -39,7 +39,9 @@ function MyVouchersPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("voucher_claims")
-        .select("id, voucher_id, claimed_at, expires_at, redeemed_at, vouchers (id, title, description, value_text, image_url)")
+        .select(
+          "id, voucher_id, claimed_at, expires_at, redeemed_at, vouchers (id, title, description, value_text, image_url)",
+        )
         .eq("user_id", user!.id)
         .order("claimed_at", { ascending: false });
       if (error) throw error;
@@ -48,24 +50,22 @@ function MyVouchersPage() {
     enabled: !!user?.id,
   });
 
-  const filtered = data?.filter((c) => {
-    const redeemed = !!c.redeemed_at;
-    const expired = new Date(c.expires_at) < new Date() && !redeemed;
-    if (filter === "used") return redeemed;
-    if (filter === "pending") return !redeemed && !expired;
-    return true;
-  }) ?? [];
+  const filtered =
+    data?.filter((c) => {
+      const redeemed = !!c.redeemed_at;
+      const expired = new Date(c.expires_at) < new Date() && !redeemed;
+      if (filter === "used") return redeemed;
+      if (filter === "expired") return expired;
+      if (filter === "pending") return !redeemed && !expired;
+      return true;
+    }) ?? [];
 
   return (
     <div className="space-y-8">
       <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 border-b border-border pb-6">
         <div>
-          <p className="text-xs uppercase tracking-widest text-primary font-semibold">
-            Yours
-          </p>
-          <h1 className="text-3xl md:text-5xl font-bold mt-2 tracking-tight">
-            My vouchers
-          </h1>
+          <p className="text-xs uppercase tracking-widest text-primary font-semibold">Yours</p>
+          <h1 className="text-3xl md:text-5xl font-bold mt-2 tracking-tight">My vouchers</h1>
           <p className="text-sm md:text-base text-muted-foreground mt-2 max-w-xl">
             Tap a voucher to redeem in front of staff.
           </p>
@@ -78,7 +78,7 @@ function MyVouchersPage() {
 
       {/* Filter tabs */}
       <div className="flex items-center gap-2">
-        {(["all", "pending", "used"] as FilterTab[]).map((tab) => (
+        {(["all", "pending", "used", "expired"] as FilterTab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setFilter(tab)}
@@ -88,7 +88,13 @@ function MyVouchersPage() {
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
             }`}
           >
-            {tab === "all" ? "All" : tab === "used" ? "Used" : "Pending"}
+            {tab === "all"
+              ? "All"
+              : tab === "used"
+                ? "Used"
+                : tab === "expired"
+                  ? "Expired"
+                  : "Pending"}
           </button>
         ))}
       </div>
@@ -105,12 +111,16 @@ function MyVouchersPage() {
               ? "No used vouchers yet"
               : filter === "pending"
                 ? "No pending vouchers"
-                : "No claimed vouchers yet"}
+                : filter === "expired"
+                  ? "No expired vouchers"
+                  : "No claimed vouchers yet"}
           </p>
           <p className="text-sm text-muted-foreground mt-1">
             {filter === "used"
               ? "Redeemed vouchers will appear here."
-              : "Browse the vouchers tab to claim one."}
+              : filter === "expired"
+                ? "Vouchers you didn't redeem in time will appear here."
+                : "Browse the vouchers tab to claim one."}
           </p>
         </Card>
       ) : (
@@ -148,9 +158,9 @@ function ClaimCard({ claim }: { claim: ClaimRow }) {
       className={status === "active" ? "" : "pointer-events-none"}
     >
       <Card
-        className={`overflow-hidden border-border/70 shadow-sm transition ${
+        className={`overflow-hidden rounded-2xl border-border/60 shadow-lg shadow-black/[0.04] ring-1 ring-black/[0.02] transition-all duration-300 ease-out ${
           status === "active"
-            ? "hover:shadow-md hover:border-primary/50"
+            ? "hover:shadow-xl hover:shadow-black/[0.08] hover:-translate-y-0.5 hover:border-primary/40"
             : status === "expired"
               ? "opacity-60"
               : ""
@@ -195,14 +205,16 @@ function ClaimCard({ claim }: { claim: ClaimRow }) {
                   <XCircle className="size-3 mr-1" /> Expired
                 </Badge>
               ) : (
-                <Badge className="bg-primary text-primary-foreground hover:bg-primary shrink-0 text-[10px] px-1.5 py-0">
+                <Badge className="bg-primary text-primary-foreground hover:bg-primary shrink-0 text-[10px] px-1.5 py-0 font-serial">
                   <Clock className="size-3 mr-1" /> {formatCountdown(cd)}
                 </Badge>
               )}
-
             </div>
 
-            <div className="mt-1">
+            <div className="mt-1 flex items-center justify-between gap-2">
+              <span className="font-serial text-[9px] text-muted-foreground/60 order-last shrink-0">
+                Nº SLK-{claim.id.slice(0, 4).toUpperCase()}
+              </span>
               {status === "redeemed" && usedDate ? (
                 <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                   <CalendarDays className="size-3" />

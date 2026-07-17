@@ -30,19 +30,13 @@ function normalizeVapidKey(raw: string | undefined): string | undefined {
 function configureVapid() {
   const publicKey =
     normalizeVapidKey(process.env.VAPID_PUBLIC_KEY) ||
-    normalizeVapidKey(process.env.VITE_VAPID_PUBLIC_KEY);
+    "BIkXIoUaoj8o9TAUbZ6qKQbY8Z6MyZAGN7Od-BBFAftggCxEnUnBXfhSKJTuq4J65v6dTAnHC494G7vTVWMlbqo";
   const privateKey = normalizeVapidKey(process.env.VAPID_PRIVATE_KEY);
   const subject = normalizeVapidSubject(process.env.VAPID_SUBJECT);
-  if (!publicKey) {
+  if (!privateKey)
     throw new Error(
-      "Push notifications are not configured (missing VAPID public key). Set VAPID_PUBLIC_KEY or VITE_VAPID_PUBLIC_KEY.",
+      "Push notifications are not configured (missing VAPID private key). Please contact support.",
     );
-  }
-  if (!privateKey) {
-    throw new Error(
-      "Push notifications are not configured (missing VAPID private key). Add VAPID_PRIVATE_KEY to Lovable Cloud server secrets.",
-    );
-  }
   if (privateKey.length !== 43) {
     throw new Error(
       `Invalid VAPID private key length (${privateKey.length}). Expected 43 URL-safe Base64 chars (32 bytes, no "=" padding).`,
@@ -55,7 +49,6 @@ function configureVapid() {
   }
   webpush.setVapidDetails(subject, publicKey, privateKey);
 }
-
 
 const subscribeSchema = z.object({
   endpoint: z.string().url().max(2048),
@@ -71,10 +64,6 @@ export const saveSubscription = createServerFn({ method: "POST" })
   .inputValidator((input) => subscribeSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-
-    // Re-assign endpoint if another account previously owned this device subscription.
-    await supabaseAdmin.from("push_subscriptions").delete().eq("endpoint", data.endpoint);
-
     const { error } = await supabase.from("push_subscriptions").upsert(
       {
         user_id: userId,
@@ -111,10 +100,7 @@ export const updatePreferences = createServerFn({ method: "POST" })
     } = { updated_at: new Date().toISOString() };
     if (typeof data.notify_vouchers === "boolean") patch.notify_vouchers = data.notify_vouchers;
     if (typeof data.notify_events === "boolean") patch.notify_events = data.notify_events;
-    const { error } = await supabase
-      .from("push_subscriptions")
-      .update(patch)
-      .eq("user_id", userId);
+    const { error } = await supabase.from("push_subscriptions").update(patch).eq("user_id", userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -179,7 +165,6 @@ export const broadcastPush = createServerFn({ method: "POST" })
       title: data.title,
       body: data.body,
       url: data.url ?? (data.category === "vouchers" ? "/app/vouchers" : "/app/events"),
-      icon: "/icon-512.png",
       image: data.image,
       tag: `${data.category}-${Date.now()}`,
     });
@@ -253,7 +238,6 @@ export const sendTestPush = createServerFn({ method: "POST" })
       title: data.title ?? "Test notification",
       body: data.body ?? "If you see this on your lock screen, push is working.",
       url: "/app",
-      icon: "/icon-512.png",
       tag: `test-${Date.now()}`,
     });
 
@@ -290,4 +274,3 @@ export const sendTestPush = createServerFn({ method: "POST" })
 
     return { sent, total: subs.length, removed: stale.length, errors };
   });
-

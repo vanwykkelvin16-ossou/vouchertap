@@ -3,9 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 
 async function checkAdmin(userId: string): Promise<boolean> {
-  const { data: isAdmin, error: isAdminError } = await supabase.rpc("is_admin");
-  if (!isAdminError) return !!isAdmin;
-
   const { data: hasRole, error: hasRoleError } = await supabase.rpc("has_role", {
     _user_id: userId,
     _role: "admin",

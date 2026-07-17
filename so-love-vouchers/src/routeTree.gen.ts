@@ -10,7 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
-import { Route as PreviewRouteImport } from './routes/preview'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -18,12 +18,13 @@ import { Route as AccessCodeRouteImport } from './routes/access-code'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AppVouchersRouteImport } from './routes/app.vouchers'
+import { Route as AppShopRouteImport } from './routes/app.shop'
 import { Route as AppProfileRouteImport } from './routes/app.profile'
 import { Route as AppMyVouchersRouteImport } from './routes/app.my-vouchers'
 import { Route as AppEventsRouteImport } from './routes/app.events'
-import { Route as AppContactRouteImport } from './routes/app.contact'
 import { Route as AppBreakfastRouteImport } from './routes/app.breakfast'
 import { Route as AdminVouchersRouteImport } from './routes/admin.vouchers'
+import { Route as AdminShopRouteImport } from './routes/admin.shop'
 import { Route as AdminRedemptionsRouteImport } from './routes/admin.redemptions'
 import { Route as AdminMembersRouteImport } from './routes/admin.members'
 import { Route as AdminEventsRouteImport } from './routes/admin.events'
@@ -36,9 +37,9 @@ const SignupRoute = SignupRouteImport.update({
   path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PreviewRoute = PreviewRouteImport.update({
-  id: '/preview',
-  path: '/preview',
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -76,6 +77,11 @@ const AppVouchersRoute = AppVouchersRouteImport.update({
   path: '/vouchers',
   getParentRoute: () => AppRoute,
 } as any)
+const AppShopRoute = AppShopRouteImport.update({
+  id: '/shop',
+  path: '/shop',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppProfileRoute = AppProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -91,11 +97,6 @@ const AppEventsRoute = AppEventsRouteImport.update({
   path: '/events',
   getParentRoute: () => AppRoute,
 } as any)
-const AppContactRoute = AppContactRouteImport.update({
-  id: '/contact',
-  path: '/contact',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppBreakfastRoute = AppBreakfastRouteImport.update({
   id: '/breakfast',
   path: '/breakfast',
@@ -104,6 +105,11 @@ const AppBreakfastRoute = AppBreakfastRouteImport.update({
 const AdminVouchersRoute = AdminVouchersRouteImport.update({
   id: '/vouchers',
   path: '/vouchers',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminShopRoute = AdminShopRouteImport.update({
+  id: '/shop',
+  path: '/shop',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminRedemptionsRoute = AdminRedemptionsRouteImport.update({
@@ -143,19 +149,20 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
-  '/preview': typeof PreviewRoute
+  '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
   '/admin/breakfast': typeof AdminBreakfastRoute
   '/admin/contact': typeof AdminContactRoute
   '/admin/events': typeof AdminEventsRoute
   '/admin/members': typeof AdminMembersRoute
   '/admin/redemptions': typeof AdminRedemptionsRoute
+  '/admin/shop': typeof AdminShopRoute
   '/admin/vouchers': typeof AdminVouchersRoute
   '/app/breakfast': typeof AppBreakfastRoute
-  '/app/contact': typeof AppContactRoute
   '/app/events': typeof AppEventsRoute
   '/app/my-vouchers': typeof AppMyVouchersRoute
   '/app/profile': typeof AppProfileRoute
+  '/app/shop': typeof AppShopRoute
   '/app/vouchers': typeof AppVouchersRoute
   '/admin/': typeof AdminIndexRoute
   '/app/voucher/$id': typeof AppVoucherIdRoute
@@ -165,19 +172,20 @@ export interface FileRoutesByTo {
   '/access-code': typeof AccessCodeRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
-  '/preview': typeof PreviewRoute
+  '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
   '/admin/breakfast': typeof AdminBreakfastRoute
   '/admin/contact': typeof AdminContactRoute
   '/admin/events': typeof AdminEventsRoute
   '/admin/members': typeof AdminMembersRoute
   '/admin/redemptions': typeof AdminRedemptionsRoute
+  '/admin/shop': typeof AdminShopRoute
   '/admin/vouchers': typeof AdminVouchersRoute
   '/app/breakfast': typeof AppBreakfastRoute
-  '/app/contact': typeof AppContactRoute
   '/app/events': typeof AppEventsRoute
   '/app/my-vouchers': typeof AppMyVouchersRoute
   '/app/profile': typeof AppProfileRoute
+  '/app/shop': typeof AppShopRoute
   '/app/vouchers': typeof AppVouchersRoute
   '/admin': typeof AdminIndexRoute
   '/app/voucher/$id': typeof AppVoucherIdRoute
@@ -189,19 +197,20 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
-  '/preview': typeof PreviewRoute
+  '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
   '/admin/breakfast': typeof AdminBreakfastRoute
   '/admin/contact': typeof AdminContactRoute
   '/admin/events': typeof AdminEventsRoute
   '/admin/members': typeof AdminMembersRoute
   '/admin/redemptions': typeof AdminRedemptionsRoute
+  '/admin/shop': typeof AdminShopRoute
   '/admin/vouchers': typeof AdminVouchersRoute
   '/app/breakfast': typeof AppBreakfastRoute
-  '/app/contact': typeof AppContactRoute
   '/app/events': typeof AppEventsRoute
   '/app/my-vouchers': typeof AppMyVouchersRoute
   '/app/profile': typeof AppProfileRoute
+  '/app/shop': typeof AppShopRoute
   '/app/vouchers': typeof AppVouchersRoute
   '/admin/': typeof AdminIndexRoute
   '/app/voucher/$id': typeof AppVoucherIdRoute
@@ -214,19 +223,20 @@ export interface FileRouteTypes {
     | '/admin'
     | '/app'
     | '/login'
-    | '/preview'
+    | '/onboarding'
     | '/signup'
     | '/admin/breakfast'
     | '/admin/contact'
     | '/admin/events'
     | '/admin/members'
     | '/admin/redemptions'
+    | '/admin/shop'
     | '/admin/vouchers'
     | '/app/breakfast'
-    | '/app/contact'
     | '/app/events'
     | '/app/my-vouchers'
     | '/app/profile'
+    | '/app/shop'
     | '/app/vouchers'
     | '/admin/'
     | '/app/voucher/$id'
@@ -236,19 +246,20 @@ export interface FileRouteTypes {
     | '/access-code'
     | '/app'
     | '/login'
-    | '/preview'
+    | '/onboarding'
     | '/signup'
     | '/admin/breakfast'
     | '/admin/contact'
     | '/admin/events'
     | '/admin/members'
     | '/admin/redemptions'
+    | '/admin/shop'
     | '/admin/vouchers'
     | '/app/breakfast'
-    | '/app/contact'
     | '/app/events'
     | '/app/my-vouchers'
     | '/app/profile'
+    | '/app/shop'
     | '/app/vouchers'
     | '/admin'
     | '/app/voucher/$id'
@@ -259,19 +270,20 @@ export interface FileRouteTypes {
     | '/admin'
     | '/app'
     | '/login'
-    | '/preview'
+    | '/onboarding'
     | '/signup'
     | '/admin/breakfast'
     | '/admin/contact'
     | '/admin/events'
     | '/admin/members'
     | '/admin/redemptions'
+    | '/admin/shop'
     | '/admin/vouchers'
     | '/app/breakfast'
-    | '/app/contact'
     | '/app/events'
     | '/app/my-vouchers'
     | '/app/profile'
+    | '/app/shop'
     | '/app/vouchers'
     | '/admin/'
     | '/app/voucher/$id'
@@ -283,7 +295,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
-  PreviewRoute: typeof PreviewRoute
+  OnboardingRoute: typeof OnboardingRoute
   SignupRoute: typeof SignupRoute
 }
 
@@ -296,11 +308,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/preview': {
-      id: '/preview'
-      path: '/preview'
-      fullPath: '/preview'
-      preLoaderRoute: typeof PreviewRouteImport
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -352,6 +364,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVouchersRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/shop': {
+      id: '/app/shop'
+      path: '/shop'
+      fullPath: '/app/shop'
+      preLoaderRoute: typeof AppShopRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/profile': {
       id: '/app/profile'
       path: '/profile'
@@ -373,13 +392,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEventsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/contact': {
-      id: '/app/contact'
-      path: '/contact'
-      fullPath: '/app/contact'
-      preLoaderRoute: typeof AppContactRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/app/breakfast': {
       id: '/app/breakfast'
       path: '/breakfast'
@@ -392,6 +404,13 @@ declare module '@tanstack/react-router' {
       path: '/vouchers'
       fullPath: '/admin/vouchers'
       preLoaderRoute: typeof AdminVouchersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/shop': {
+      id: '/admin/shop'
+      path: '/shop'
+      fullPath: '/admin/shop'
+      preLoaderRoute: typeof AdminShopRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/redemptions': {
@@ -445,6 +464,7 @@ interface AdminRouteChildren {
   AdminEventsRoute: typeof AdminEventsRoute
   AdminMembersRoute: typeof AdminMembersRoute
   AdminRedemptionsRoute: typeof AdminRedemptionsRoute
+  AdminShopRoute: typeof AdminShopRoute
   AdminVouchersRoute: typeof AdminVouchersRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
@@ -455,6 +475,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminEventsRoute: AdminEventsRoute,
   AdminMembersRoute: AdminMembersRoute,
   AdminRedemptionsRoute: AdminRedemptionsRoute,
+  AdminShopRoute: AdminShopRoute,
   AdminVouchersRoute: AdminVouchersRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
@@ -463,20 +484,20 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface AppRouteChildren {
   AppBreakfastRoute: typeof AppBreakfastRoute
-  AppContactRoute: typeof AppContactRoute
   AppEventsRoute: typeof AppEventsRoute
   AppMyVouchersRoute: typeof AppMyVouchersRoute
   AppProfileRoute: typeof AppProfileRoute
+  AppShopRoute: typeof AppShopRoute
   AppVouchersRoute: typeof AppVouchersRoute
   AppVoucherIdRoute: typeof AppVoucherIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppBreakfastRoute: AppBreakfastRoute,
-  AppContactRoute: AppContactRoute,
   AppEventsRoute: AppEventsRoute,
   AppMyVouchersRoute: AppMyVouchersRoute,
   AppProfileRoute: AppProfileRoute,
+  AppShopRoute: AppShopRoute,
   AppVouchersRoute: AppVouchersRoute,
   AppVoucherIdRoute: AppVoucherIdRoute,
 }
@@ -489,7 +510,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
-  PreviewRoute: PreviewRoute,
+  OnboardingRoute: OnboardingRoute,
   SignupRoute: SignupRoute,
 }
 export const routeTree = rootRouteImport

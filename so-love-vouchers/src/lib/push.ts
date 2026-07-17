@@ -1,15 +1,9 @@
 // Browser-side push notification helpers.
 // Service worker is kept inert inside the Lovable preview iframe to avoid caching issues.
 
-function readVapidPublicKey(): string {
-  const key = import.meta.env.VITE_VAPID_PUBLIC_KEY?.trim();
-  if (!key) {
-    throw new Error(
-      "Push notifications are not configured (missing VITE_VAPID_PUBLIC_KEY).",
-    );
-  }
-  return key;
-}
+export const VAPID_PUBLIC_KEY =
+  (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined) ||
+  "BIkXIoUaoj8o9TAUbZ6qKQbY8Z6MyZAGN7Od-BBFAftggCxEnUnBXfhSKJTuq4J65v6dTAnHC494G7vTVWMlbqo";
 
 function isPreviewOrIframe(): boolean {
   if (typeof window === "undefined") return true;
@@ -22,7 +16,8 @@ function isPreviewOrIframe(): boolean {
   return (
     host.includes("id-preview--") ||
     host.includes("lovableproject.com") ||
-    host.includes("lovable.dev")
+    host.includes("lovable.dev") ||
+    host === "localhost"
   );
 }
 
@@ -45,21 +40,19 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return output;
 }
 
-function arrayBufferToBase64Url(buffer: ArrayBuffer | null): string {
+function arrayBufferToBase64(buffer: ArrayBuffer | null): string {
   if (!buffer) return "";
   const bytes = new Uint8Array(buffer);
   let binary = "";
   for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  return btoa(binary);
 }
 
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!pushSupported()) return null;
-  const existing = await navigator.serviceWorker.getRegistration("/");
+  const existing = await navigator.serviceWorker.getRegistration("/sw.js");
   if (existing) return existing;
-  const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-  await navigator.serviceWorker.ready;
-  return registration;
+  return navigator.serviceWorker.register("/sw.js", { scope: "/" });
 }
 
 export async function getPushSubscription(): Promise<PushSubscription | null> {
@@ -86,15 +79,15 @@ export async function subscribeToPush(): Promise<{
   if (!sub) {
     sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(readVapidPublicKey()) as BufferSource,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
     });
   }
 
   const json = sub.toJSON();
   return {
     endpoint: sub.endpoint,
-    p256dh: json.keys?.p256dh ?? arrayBufferToBase64Url(sub.getKey("p256dh")),
-    auth: json.keys?.auth ?? arrayBufferToBase64Url(sub.getKey("auth")),
+    p256dh: json.keys?.p256dh ?? arrayBufferToBase64(sub.getKey("p256dh")),
+    auth: json.keys?.auth ?? arrayBufferToBase64(sub.getKey("auth")),
   };
 }
 

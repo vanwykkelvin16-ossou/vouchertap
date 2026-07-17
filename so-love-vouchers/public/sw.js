@@ -33,8 +33,7 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const path = (event.notification.data && event.notification.data.url) || "/app";
-  const targetUrl = new URL(path, self.location.origin).href;
+  const target = (event.notification.data && event.notification.data.url) || "/app";
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
@@ -42,14 +41,12 @@ self.addEventListener("notificationclick", (event) => {
         try {
           const url = new URL(client.url);
           if (url.origin === self.location.origin && "focus" in client) {
-            if ("navigate" in client && typeof client.navigate === "function") {
-              return client.navigate(targetUrl).then(() => client.focus());
-            }
+            client.navigate(target);
             return client.focus();
           }
         } catch (e) {}
       }
-      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+      if (self.clients.openWindow) return self.clients.openWindow(target);
     }),
   );
 });

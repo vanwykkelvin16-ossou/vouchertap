@@ -13,16 +13,12 @@ export function useRealtimeInvalidate(table: string, queryKeys: (string | undefi
     let timer: ReturnType<typeof setTimeout> | undefined;
     const channel = supabase
       .channel(`rt-${table}-${Math.random().toString(36).slice(2, 8)}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table },
-        () => {
-          if (timer) clearTimeout(timer);
-          timer = setTimeout(() => {
-            queryKeys.forEach((k) => qc.invalidateQueries({ queryKey: k as string[] }));
-          }, 300);
-        },
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table }, () => {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+          queryKeys.forEach((k) => qc.invalidateQueries({ queryKey: k as string[] }));
+        }, 300);
+      })
       .subscribe();
     return () => {
       if (timer) clearTimeout(timer);

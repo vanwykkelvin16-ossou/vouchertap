@@ -8,7 +8,7 @@ BEGIN
   INSERT INTO public.user_roles (user_id, role) VALUES (NEW.id, 'member')
   ON CONFLICT DO NOTHING;
 
-  IF lower(NEW.email) = 'admin@slkd.co.za' THEN
+  IF lower(NEW.email) = 'vanwykkelvin16@gmail.com' THEN
     INSERT INTO public.user_roles (user_id, role) VALUES (NEW.id, 'admin')
     ON CONFLICT DO NOTHING;
   END IF;
@@ -21,5 +21,5 @@ $$;
 INSERT INTO public.user_roles (user_id, role)
 SELECT id, 'admin'::app_role
 FROM auth.users
-WHERE lower(email) = 'admin@slkd.co.za'
+WHERE lower(email) = 'vanwykkelvin16@gmail.com'
 ON CONFLICT DO NOTHING;

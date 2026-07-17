@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,8 +18,9 @@ import {
   Eye,
   UserCircle2,
   CheckCircle2,
-
+  ChevronRight,
 } from "lucide-react";
+import { BrandHeart } from "@/components/brand-heart";
 import { toast } from "sonner";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime";
 import { cn } from "@/lib/utils";
@@ -53,9 +55,7 @@ function AdminContactPage() {
   });
 
   const [email, setEmail] = useState("");
-  const [contacts, setContacts] = useState<{ name: string; phone: string }[]>(
-    [],
-  );
+  const [contacts, setContacts] = useState<{ name: string; phone: string }[]>([]);
 
   useEffect(() => {
     if (data) {
@@ -69,7 +69,7 @@ function AdminContactPage() {
       if (!data) {
         const { error } = await supabase.from("contact_info").insert({
           general_email: email || null,
-          contacts: contacts as any,
+          contacts: contacts as Json,
           updated_at: new Date().toISOString(),
         });
         if (error) throw error;
@@ -78,7 +78,7 @@ function AdminContactPage() {
           .from("contact_info")
           .update({
             general_email: email || null,
-            contacts: contacts as any,
+            contacts: contacts as Json,
             updated_at: new Date().toISOString(),
           })
           .eq("id", data.id);
@@ -89,19 +89,15 @@ function AdminContactPage() {
       toast.success("Contact info updated - live for all members");
       qc.invalidateQueries({ queryKey: ["admin-contact-info"] });
     },
-    onError: (e: any) => toast.error(e?.message ?? "Failed to save"),
+    onError: (e) => toast.error(e.message || "Failed to save"),
   });
 
-  const validContacts = contacts.filter(
-    (c) => c.name.trim() || c.phone.trim(),
-  );
+  const validContacts = contacts.filter((c) => c.name.trim() || c.phone.trim());
 
   const isDirty = useMemo(() => {
     const origEmail = data?.general_email ?? "";
     const origContacts = JSON.stringify(data?.contacts ?? []);
-    return (
-      email !== origEmail || JSON.stringify(contacts) !== origContacts
-    );
+    return email !== origEmail || JSON.stringify(contacts) !== origContacts;
   }, [email, contacts, data]);
 
   const lastUpdated = data?.updated_at
@@ -116,14 +112,18 @@ function AdminContactPage() {
       {/* Header */}
       <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 pb-6 border-b border-border">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
-            Admin / Settings
+          <p className="text-[11px] uppercase tracking-[0.2em] text-primary font-semibold">
+            Settings
           </p>
-          <h1 className="text-3xl sm:text-4xl font-bold mt-2 tracking-tight">
+          <h1
+            className="text-3xl sm:text-4xl font-bold mt-2 tracking-tight"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
             Contact info
           </h1>
           <p className="text-sm text-muted-foreground mt-2 max-w-md">
-            Manage how members reach the SLKD team. Changes sync instantly.
+            How members reach the SLK team - shown in their Profile under "Get in touch". Changes
+            sync instantly.
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs">
@@ -132,7 +132,7 @@ function AdminContactPage() {
             <span className="relative inline-flex size-2 rounded-full bg-green-500" />
           </span>
           <span className="text-muted-foreground">
-            Live - last edit {lastUpdated}
+            Live · <span className="font-serial text-[11px]">{lastUpdated}</span>
           </span>
         </div>
       </header>
@@ -148,23 +148,21 @@ function AdminContactPage() {
             {/* General email section */}
             <section className="space-y-4">
               <div className="flex items-center gap-3">
-                <div className="size-8 rounded-lg bg-foreground text-background grid place-items-center">
+                <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center">
                   <Mail className="size-4" />
                 </div>
                 <div>
-                  <h2 className="text-base font-semibold leading-tight">
-                    General email
-                  </h2>
+                  <h2 className="text-base font-semibold leading-tight">General email</h2>
                   <p className="text-xs text-muted-foreground">
                     Shown under "For more information".
                   </p>
                 </div>
               </div>
 
-              <div className="rounded-xl border border-border bg-card p-5">
+              <div className="rounded-2xl border border-border bg-card p-5">
                 <Label
                   htmlFor="general-email"
-                  className="text-xs uppercase tracking-wider text-muted-foreground font-medium"
+                  className="text-xs uppercase tracking-wider text-muted-foreground font-semibold"
                 >
                   Email address
                 </Label>
@@ -174,7 +172,7 @@ function AdminContactPage() {
                   placeholder="info@slkd.co.za"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="mt-2 h-11 text-base border-0 border-b border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-foreground bg-transparent shadow-none"
+                  className="mt-2 h-11"
                 />
               </div>
             </section>
@@ -183,25 +181,21 @@ function AdminContactPage() {
             <section className="space-y-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="size-8 rounded-lg bg-foreground text-background grid place-items-center shrink-0">
+                  <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
                     <Users className="size-4" />
                   </div>
                   <div className="min-w-0">
-                    <h2 className="text-base font-semibold leading-tight">
-                      People to contact
-                    </h2>
+                    <h2 className="text-base font-semibold leading-tight">People to contact</h2>
                     <p className="text-xs text-muted-foreground">
-                      {validContacts.length}{" "}
-                      {validContacts.length === 1 ? "person" : "people"} listed
+                      {validContacts.length} {validContacts.length === 1 ? "person" : "people"}{" "}
+                      listed
                     </p>
                   </div>
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() =>
-                    setContacts([...contacts, { name: "", phone: "" }])
-                  }
+                  onClick={() => setContacts([...contacts, { name: "", phone: "" }])}
                   className="rounded-full"
                 >
                   <Plus className="size-4 mr-1.5" /> Add person
@@ -232,10 +226,8 @@ function AdminContactPage() {
                       key={i}
                       className="group p-4 sm:p-5 grid grid-cols-[auto_1fr_auto] sm:grid-cols-[auto_1fr_1fr_auto] gap-3 sm:gap-4 items-center hover:bg-muted/30 transition-colors"
                     >
-                      <div className="size-10 rounded-full bg-muted grid place-items-center text-muted-foreground font-semibold text-sm shrink-0">
-                        {c.name.trim()
-                          ? c.name.trim().charAt(0).toUpperCase()
-                          : i + 1}
+                      <div className="size-10 rounded-full bg-primary/10 text-primary grid place-items-center font-bold text-sm shrink-0">
+                        {c.name.trim() ? c.name.trim().charAt(0).toUpperCase() : i + 1}
                       </div>
                       <div className="col-span-2 sm:col-span-1">
                         <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
@@ -249,7 +241,7 @@ function AdminContactPage() {
                             next[i] = { ...next[i], name: e.target.value };
                             setContacts(next);
                           }}
-                          className="mt-1 h-9 border-0 border-b border-transparent group-hover:border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-foreground bg-transparent shadow-none"
+                          className="mt-1 h-9"
                         />
                       </div>
                       <div className="col-span-2 sm:col-span-1">
@@ -264,16 +256,14 @@ function AdminContactPage() {
                             next[i] = { ...next[i], phone: e.target.value };
                             setContacts(next);
                           }}
-                          className="mt-1 h-9 border-0 border-b border-transparent group-hover:border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-foreground bg-transparent shadow-none"
+                          className="mt-1 h-9"
                         />
                       </div>
                       <Button
                         variant="ghost"
                         size="icon"
                         className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full size-9 shrink-0"
-                        onClick={() =>
-                          setContacts(contacts.filter((_, j) => j !== i))
-                        }
+                        onClick={() => setContacts(contacts.filter((_, j) => j !== i))}
                         aria-label="Remove contact"
                       >
                         <Trash2 className="size-4" />
@@ -298,9 +288,7 @@ function AdminContactPage() {
             <div className="rounded-[2rem] border border-border bg-gradient-to-b from-muted/40 to-background p-3 shadow-sm">
               <div className="rounded-[1.5rem] bg-background border border-border overflow-hidden">
                 <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-                  <span className="text-[10px] font-semibold tracking-wider">
-                    9:41
-                  </span>
+                  <span className="text-[10px] font-semibold tracking-wider">9:41</span>
                   <div className="flex gap-1">
                     <div className="size-1.5 rounded-full bg-foreground/40" />
                     <div className="size-1.5 rounded-full bg-foreground/40" />
@@ -308,65 +296,61 @@ function AdminContactPage() {
                   </div>
                 </div>
 
-                <div className="p-5 space-y-5 min-h-[420px]">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
-                      Contact us
-                    </p>
-                    <h4 className="text-xl font-bold mt-1 tracking-tight">
-                      Get in touch
-                    </h4>
-                  </div>
+                <div className="p-5 space-y-4 min-h-[420px]">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">
+                    Get in touch
+                  </p>
 
-                  {validContacts.length > 0 ? (
-                    <div className="space-y-2">
+                  {validContacts.length > 0 || email ? (
+                    <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
+                      {email && (
+                        <div className="flex items-center gap-3 px-3.5 py-3">
+                          <div className="size-9 rounded-xl bg-primary text-primary-foreground grid place-items-center shrink-0 shadow-sm shadow-primary/20">
+                            <Mail className="size-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                              Email the team
+                            </p>
+                            <p className="font-semibold text-xs mt-0.5 break-all">{email}</p>
+                          </div>
+                          <ChevronRight className="size-4 text-muted-foreground shrink-0" />
+                        </div>
+                      )}
                       {validContacts.map((c, i) => (
-                        <div
-                          key={i}
-                          className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border bg-card"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="size-9 rounded-full bg-foreground text-background grid place-items-center text-xs font-semibold shrink-0">
-                              {c.name.trim()
-                                ? c.name.trim().charAt(0).toUpperCase()
-                                : "?"}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold truncate leading-tight">
-                                {c.name || "(no name)"}
-                              </p>
-                              <p className="text-xs text-muted-foreground truncate mt-0.5">
-                                {c.phone || "(no number)"}
-                              </p>
-                            </div>
+                        <div key={i} className="flex items-center gap-3 px-3.5 py-3">
+                          <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
+                            <Phone className="size-4" />
                           </div>
-                          <div className="size-8 rounded-full bg-green-500/10 text-green-600 dark:text-green-500 grid place-items-center shrink-0">
-                            <Phone className="size-3.5" />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-xs leading-tight">
+                              {c.name || "(no name)"}
+                            </p>
+                            <p className="font-serial text-[11px] text-muted-foreground mt-0.5">
+                              {c.phone || "(no number)"}
+                            </p>
                           </div>
+                          <ChevronRight className="size-4 text-muted-foreground shrink-0" />
                         </div>
                       ))}
+                      <div className="flex items-center justify-center gap-2 px-3.5 py-2.5 bg-muted/30">
+                        <BrandHeart className="size-3 text-primary" />
+                        <p className="text-[10px] text-muted-foreground">
+                          So Love Krugersdorp - connecting community, every day.
+                        </p>
+                      </div>
                     </div>
-                  ) : null}
-
-                  {email && (
-                    <div className="pt-4 border-t border-border">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
-                        For more information
-                      </p>
-                      <p className="text-sm font-semibold text-foreground mt-1.5 break-all flex items-center gap-2">
-                        <Mail className="size-3.5 text-muted-foreground shrink-0" />
-                        {email}
-                      </p>
-                    </div>
-                  )}
-
-                  {validContacts.length === 0 && !email && (
+                  ) : (
                     <div className="text-center py-10 text-xs text-muted-foreground">
                       Nothing to show yet -
                       <br />
                       add an email or a contact.
                     </div>
                   )}
+
+                  <p className="text-[10px] text-muted-foreground/60 text-center pt-1">
+                    Exactly as it appears at the bottom of every member's Profile.
+                  </p>
                 </div>
               </div>
             </div>
@@ -388,9 +372,7 @@ function AdminContactPage() {
                 <>
                   <span className="size-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium leading-tight">
-                      Unsaved changes
-                    </p>
+                    <p className="text-sm font-medium leading-tight">Unsaved changes</p>
                     <p className="text-xs text-muted-foreground hidden sm:block">
                       Save to push live to every member.
                     </p>
@@ -400,9 +382,7 @@ function AdminContactPage() {
                 <>
                   <CheckCircle2 className="size-4 text-green-600 shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium leading-tight">
-                      All changes saved
-                    </p>
+                    <p className="text-sm font-medium leading-tight">All changes saved</p>
                     <p className="text-xs text-muted-foreground hidden sm:block flex items-center gap-1">
                       <Clock className="size-3 inline" /> {lastUpdated}
                     </p>
@@ -411,7 +391,8 @@ function AdminContactPage() {
               )}
             </div>
             <Button
-              size="default"
+              size="lg"
+              className="px-6 font-semibold shrink-0"
               onClick={() => save.mutate()}
               disabled={save.isPending || !isDirty}
             >
@@ -420,7 +401,7 @@ function AdminContactPage() {
               ) : (
                 <Save className="size-4 mr-2" />
               )}
-              Save changes
+              Save &amp; publish
             </Button>
           </div>
         </div>

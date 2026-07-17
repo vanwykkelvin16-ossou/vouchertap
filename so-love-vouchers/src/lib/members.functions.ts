@@ -4,13 +4,9 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export const deleteMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z.object({ userId: z.string().uuid() }).parse(input),
-  )
+  .inputValidator((input) => z.object({ userId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import(
-      "@/integrations/supabase/client.server"
-    );
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Verify caller is admin
     const { data: adminRow, error: adminErr } = await supabaseAdmin
@@ -27,24 +23,13 @@ export const deleteMember = createServerFn({ method: "POST" })
     }
 
     // Wipe all user-related rows across the app
-    await supabaseAdmin
-      .from("voucher_claims")
-      .delete()
-      .eq("user_id", data.userId);
-    await supabaseAdmin
-      .from("push_subscriptions")
-      .delete()
-      .eq("user_id", data.userId);
-    await supabaseAdmin
-      .from("user_roles")
-      .delete()
-      .eq("user_id", data.userId);
+    await supabaseAdmin.from("voucher_claims").delete().eq("user_id", data.userId);
+    await supabaseAdmin.from("push_subscriptions").delete().eq("user_id", data.userId);
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId);
     await supabaseAdmin.from("profiles").delete().eq("id", data.userId);
 
     // Delete auth user last
-    const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(
-      data.userId,
-    );
+    const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
     if (authErr) throw new Error(authErr.message);
 
     return { ok: true };

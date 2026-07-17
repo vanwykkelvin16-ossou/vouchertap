@@ -20,62 +20,75 @@ import appCss from "../styles.css?url";
 const PRELOADER_LOGO_W = 280;
 const PRELOADER_LOGO_H = 161;
 
-const PRELOADER_INNER_HTML = `<div class="slk-backdrop" style="position:absolute;inset:0;background:#ffffff;z-index:0;margin:0;padding:0"></div><img class="slk-logo" src="/preloader-logo.png" alt="So Love Krugersdorp" width="${PRELOADER_LOGO_W}" height="${PRELOADER_LOGO_H}" decoding="sync" fetchpriority="high" style="position:relative;z-index:1;width:${PRELOADER_LOGO_W}px;height:${PRELOADER_LOGO_H}px;margin:0;padding:0;border:0;display:block;object-fit:contain;flex-shrink:0" />`;
-
-const PRELOADER_SHELL_STYLE = {
-  position: "fixed",
-  inset: 0,
-  zIndex: 2147483647,
-  display: "grid",
-  placeItems: "center",
-  overflow: "hidden",
-  margin: 0,
-  padding: 0,
-  background: "#ffffff",
-} as const;
+const PRELOADER_HTML = `<div id="app-preloader" aria-hidden="true" style="position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;opacity:1;visibility:visible;pointer-events:auto;overflow:hidden;margin:0;padding:0;background:#ffffff"><div class="slk-backdrop" style="position:absolute;inset:0;background:#ffffff;z-index:0;margin:0;padding:0"></div><div class="slk-logo" role="img" aria-label="So Love Krugersdorp" style="position:relative;z-index:1;width:${PRELOADER_LOGO_W}px;height:${PRELOADER_LOGO_H}px;margin:0;padding:0;border:0;background:url(/preloader-logo.png) center/contain no-repeat;transform:none;flex-shrink:0"></div></div>`;
 
 const PRELOADER_CSS = `
 html,body{background:#ffffff!important}
 html:not(.app-ready){overflow:hidden!important}
 html:not(.app-ready) body>*:not(#app-preloader):not(script){visibility:hidden!important;opacity:0!important;pointer-events:none!important}
-#app-preloader{position:fixed!important;inset:0!important;z-index:2147483647!important;display:grid!important;place-items:center!important;opacity:1;visibility:visible;transition:opacity .4s ease,visibility 0s linear .4s;pointer-events:auto;overflow:hidden!important;margin:0!important;padding:0!important;background:#ffffff!important}
-#app-preloader.is-hidden{opacity:0!important;pointer-events:none!important;visibility:hidden!important}
+#app-preloader{position:fixed!important;inset:0!important;z-index:2147483647!important;display:grid!important;place-items:center!important;opacity:1;visibility:visible;transition:opacity .7s ease,visibility 0s linear .7s;will-change:opacity;pointer-events:auto;overflow:hidden!important;margin:0!important;padding:0!important;background:#ffffff!important}
+#app-preloader.is-hidden{opacity:0;pointer-events:none;visibility:hidden}
+html.preloader-skip #app-preloader,html.preloader-done #app-preloader{display:none!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important}
 #app-preloader .slk-backdrop{position:absolute!important;inset:0!important;background:#ffffff!important;z-index:0!important;margin:0!important;padding:0!important}
-#app-preloader .slk-logo{position:relative!important;top:auto!important;left:auto!important;right:auto!important;bottom:auto!important;transform:none!important;width:${PRELOADER_LOGO_W}px!important;height:${PRELOADER_LOGO_H}px!important;min-width:${PRELOADER_LOGO_W}px!important;min-height:${PRELOADER_LOGO_H}px!important;max-width:${PRELOADER_LOGO_W}px!important;max-height:${PRELOADER_LOGO_H}px!important;object-fit:contain!important;z-index:1!important;pointer-events:none!important;margin:0!important;padding:0!important;border:0!important;transition:none!important;flex-shrink:0!important}
+#app-preloader .slk-logo{position:relative!important;top:auto!important;left:auto!important;right:auto!important;bottom:auto!important;transform:none!important;width:${PRELOADER_LOGO_W}px!important;height:${PRELOADER_LOGO_H}px!important;min-width:${PRELOADER_LOGO_W}px!important;min-height:${PRELOADER_LOGO_H}px!important;max-width:${PRELOADER_LOGO_W}px!important;max-height:${PRELOADER_LOGO_H}px!important;background:url(/preloader-logo.png) center/contain no-repeat!important;z-index:1!important;pointer-events:none!important;margin:0!important;padding:0!important;border:0!important;transition:none!important;flex-shrink:0!important}
 `;
 
-// Fade on DOMContentLoaded (not window.load) so fonts/images cannot block handoff.
-// Never set opacity inline — that would override .is-hidden and stick the overlay.
-const PRELOADER_JS = `
+const PRELOADER_SESSION_JS = `
+(function(){
+  try{
+    if(sessionStorage.getItem('slk-preloader-shown')==='1'){
+      document.documentElement.classList.add('app-ready','preloader-skip','preloader-done');
+    }
+  }catch(e){}
+})();
+`;
+
+// Runs synchronously right after preloader markup — locks layout before rest of body paints.
+const PRELOADER_LOCK_JS = `
 (function(){
   var el=document.getElementById('app-preloader');
-  if(!el)return;
-  var MIN=450,start=Date.now(),done=false,revealed=false;
-  function reveal(){
-    if(revealed)return;
-    revealed=true;
+  var logo=el&&el.querySelector('.slk-logo');
+  if(!el||!logo)return;
+  el.style.cssText='position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;opacity:1;visibility:visible;pointer-events:auto;overflow:hidden;margin:0;padding:0;background:#fff';
+  logo.style.cssText='position:relative;z-index:1;width:${PRELOADER_LOGO_W}px;height:${PRELOADER_LOGO_H}px;margin:0;padding:0;border:0;background:url(/preloader-logo.png) center/contain no-repeat;transform:none;flex-shrink:0';
+})();
+`;
+
+// Self-contained fade-out — runs immediately on parse, with NO dependency on
+// React/hydration. Content stays hidden until the opacity transition ends so
+// fixed mobile nav cannot bleed through during the fade.
+//
+// IMPORTANT: we only toggle classes — we never remove the node from the DOM.
+// The overlay lives inside React's hydrated shell, so deleting it would race
+// React's streaming hydration on data-heavy routes and throw.
+const PRELOADER_JS = `
+(function(){
+  var KEY='slk-preloader-shown';
+  function markSeen(){try{sessionStorage.setItem(KEY,'1')}catch(e){}}
+  function hasSeen(){try{return sessionStorage.getItem(KEY)==='1'}catch(e){return document.documentElement.classList.contains('preloader-done')}}
+  function finish(el,instant){
     document.documentElement.classList.add('app-ready');
-  }
-  function hide(){
-    if(done)return;
-    done=true;
-    var onEnd=function(e){
-      if(e.target===el&&e.propertyName==='opacity'){
-        el.removeEventListener('transitionend',onEnd);
-        reveal();
-      }
-    };
-    el.addEventListener('transitionend',onEnd);
+    if(!el){document.documentElement.classList.add('preloader-done');return;}
+    if(instant){
+      el.classList.add('is-hidden');
+      document.documentElement.classList.add('preloader-skip','preloader-done');
+      if(el.parentNode)el.parentNode.removeChild(el);
+      return;
+    }
     el.classList.add('is-hidden');
-    setTimeout(reveal,500);
+    setTimeout(function(){
+      document.documentElement.classList.add('preloader-done');
+      if(el&&el.parentNode)el.parentNode.removeChild(el);
+    },900);
   }
-  function schedule(){var w=MIN-(Date.now()-start);setTimeout(hide,w>0?w:0);}
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',schedule,{once:true});
-  }else{
-    schedule();
+  function run(){
+    var el=document.getElementById('app-preloader');
+    if(!el){setTimeout(run,50);return;}
+    if(hasSeen()){finish(el,true);return;}
+    markSeen();
+    finish(el,false);
   }
-  setTimeout(hide,3000);
+  run();
 })();
 `;
 
@@ -152,26 +165,46 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "apple-mobile-web-app-title", content: "So Love" },
       { name: "robots", content: "noindex" },
       { property: "og:title", content: "So Love Krugersdorp" },
-      { property: "og:description", content: "So Love Vouchers is a PWA for clients to view and claim exclusive digital vouchers and event information." },
+      {
+        property: "og:description",
+        content:
+          "So Love Vouchers is a PWA for clients to view and claim exclusive digital vouchers and event information.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:title", content: "So Love Krugersdorp" },
-      { name: "description", content: "So Love Vouchers is a PWA for clients to view and claim exclusive digital vouchers and event information." },
-      { name: "twitter:description", content: "So Love Vouchers is a PWA for clients to view and claim exclusive digital vouchers and event information." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/35963f43-f843-40cb-90c2-52a42c828c6b/id-preview-8725291a--e813bc15-1aea-4b15-bb90-5a96c13b072f.lovable.app-1779875469542.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/35963f43-f843-40cb-90c2-52a42c828c6b/id-preview-8725291a--e813bc15-1aea-4b15-bb90-5a96c13b072f.lovable.app-1779875469542.png" },
+      {
+        name: "description",
+        content:
+          "So Love Vouchers is a PWA for clients to view and claim exclusive digital vouchers and event information.",
+      },
+      {
+        name: "twitter:description",
+        content:
+          "So Love Vouchers is a PWA for clients to view and claim exclusive digital vouchers and event information.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/35963f43-f843-40cb-90c2-52a42c828c6b/id-preview-8725291a--e813bc15-1aea-4b15-bb90-5a96c13b072f.lovable.app-1779875469542.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/35963f43-f843-40cb-90c2-52a42c828c6b/id-preview-8725291a--e813bc15-1aea-4b15-bb90-5a96c13b072f.lovable.app-1779875469542.png",
+      },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
-      { rel: "preload", as: "image", href: "/preloader-logo.png", fetchPriority: "high" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      { rel: "preload", as: "image", href: "/preloader-logo.png" },
       { rel: "stylesheet", href: appCss },
       { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "icon", type: "image/png", href: "/icon-512.png" },
       { rel: "apple-touch-icon", href: "/icon-512.png" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Inter:wght@400;500;600;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Inter:wght@400;450;500;600;700&display=swap",
       },
     ],
   }),
@@ -183,19 +216,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: PRELOADER_SESSION_JS }} />
         <style dangerouslySetInnerHTML={{ __html: PRELOADER_CSS }} />
         <HeadContent />
       </head>
       <body suppressHydrationWarning>
-        <div
-          id="app-preloader"
-          aria-hidden="true"
-          suppressHydrationWarning
-          style={PRELOADER_SHELL_STYLE}
-          dangerouslySetInnerHTML={{ __html: PRELOADER_INNER_HTML }}
-        />
+        {/* Static HTML preloader — not React-managed, so hydration cannot reposition it. */}
+        <div suppressHydrationWarning dangerouslySetInnerHTML={{ __html: PRELOADER_HTML }} />
+        <script dangerouslySetInnerHTML={{ __html: PRELOADER_LOCK_JS }} />
         <script dangerouslySetInnerHTML={{ __html: PRELOADER_JS }} />
         {children}
         <Scripts />

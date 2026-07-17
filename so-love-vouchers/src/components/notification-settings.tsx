@@ -114,10 +114,7 @@ export function NotificationSettings() {
     if (!enabled) return;
     try {
       await updatePrefs({
-        data:
-          key === "vouchers"
-            ? { notify_vouchers: value }
-            : { notify_events: value },
+        data: key === "vouchers" ? { notify_vouchers: value } : { notify_events: value },
       });
     } catch (e) {
       console.error(e);
@@ -145,7 +142,8 @@ export function NotificationSettings() {
         <div className="flex items-start gap-2 rounded-lg bg-muted/50 border border-dashed p-3 text-xs text-muted-foreground">
           <Info className="size-4 mt-0.5 flex-shrink-0" />
           <span>
-            Notifications are disabled in this in-app preview. Open the published site or install the app to enable them.
+            Notifications are disabled in this in-app preview. Open the published site or install
+            the app to enable them.
           </span>
         </div>
       ) : !supported ? (
@@ -161,7 +159,8 @@ export function NotificationSettings() {
               <div>
                 <p className="font-semibold text-foreground">iPhone tip</p>
                 <p className="text-muted-foreground mt-0.5">
-                  To receive notifications on iOS, tap the share icon in Safari and choose "Add to Home Screen", then open the app from your home screen.
+                  To receive notifications on iOS, tap the share icon in Safari and choose "Add to
+                  Home Screen", then open the app from your home screen.
                 </p>
               </div>
             </div>
@@ -173,7 +172,11 @@ export function NotificationSettings() {
             </div>
           ) : !enabled ? (
             <Button onClick={handleEnable} disabled={busy} className="w-full">
-              {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : <Bell className="size-4 mr-2" />}
+              {busy ? (
+                <Loader2 className="size-4 animate-spin mr-2" />
+              ) : (
+                <Bell className="size-4 mr-2" />
+              )}
               Enable notifications
             </Button>
           ) : (
@@ -217,7 +220,11 @@ export function NotificationSettings() {
                 disabled={busy}
                 className="w-full"
               >
-                {busy ? <Loader2 className="size-4 animate-spin mr-2" /> : <Bell className="size-4 mr-2" />}
+                {busy ? (
+                  <Loader2 className="size-4 animate-spin mr-2" />
+                ) : (
+                  <Bell className="size-4 mr-2" />
+                )}
                 Send test notification
               </Button>
               <Button

@@ -1,18 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  ModalBody,
+  FormSection,
+  Field,
+  DateTimeField,
+  ToggleRow,
+  ModalFooter,
+} from "@/components/admin/form-kit";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,18 +35,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ImageUploader } from "@/components/image-uploader";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
-import { AdminEmptyState } from "@/components/admin/admin-empty-state";
-import { AdminResourceCard } from "@/components/admin/admin-resource-card";
-import { AdminSearchBar } from "@/components/admin/admin-search-bar";
-import {
-  AdminFormSection,
-  AdminFormDivider,
-  AdminField,
-  AdminDatetimeField,
-  AdminStatusToggle,
-} from "@/components/admin/admin-form";
-import { Plus, Loader2, Mic2, CalendarDays } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Mic2, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/breakfast")({
@@ -88,22 +87,11 @@ function combineDatetime(date: string, time: string): string {
   return `${date}T${time || "00:00"}`;
 }
 
-function formatMeetingDate(iso: string) {
-  return new Date(iso).toLocaleString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 function AdminBreakfastPage() {
   const qc = useQueryClient();
   useRealtimeInvalidate("breakfast_meetings", [["admin-breakfast"]]);
   const [edit, setEdit] = useState<EditState | null>(null);
   const [deleting, setDeleting] = useState<MeetingRow | null>(null);
-  const [search, setSearch] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-breakfast"],
@@ -116,18 +104,6 @@ function AdminBreakfastPage() {
       return data as MeetingRow[];
     },
   });
-
-  const filtered = useMemo(() => {
-    if (!data) return [];
-    const q = search.trim().toLowerCase();
-    if (!q) return data;
-    return data.filter(
-      (m) =>
-        m.speaker_name?.toLowerCase().includes(q) ||
-        m.topic?.toLowerCase().includes(q) ||
-        m.speaker_title?.toLowerCase().includes(q),
-    );
-  }, [data, search]);
 
   const save = useMutation({
     mutationFn: async (e: EditState) => {
@@ -143,10 +119,7 @@ function AdminBreakfastPage() {
         is_published: e.is_published ?? true,
       };
       if (e.id) {
-        const { error } = await supabase
-          .from("breakfast_meetings")
-          .update(payload)
-          .eq("id", e.id);
+        const { error } = await supabase.from("breakfast_meetings").update(payload).eq("id", e.id);
         if (error) throw error;
       } else {
         const { error } = await supabase.from("breakfast_meetings").insert(payload);
@@ -154,11 +127,11 @@ function AdminBreakfastPage() {
       }
     },
     onSuccess: () => {
-      toast.success("Meeting saved");
+      toast.success("Saved");
       qc.invalidateQueries({ queryKey: ["admin-breakfast"] });
       setEdit(null);
     },
-    onError: (e: any) => toast.error(e?.message ?? "Failed to save"),
+    onError: (e) => toast.error(e.message || "Failed to save"),
   });
 
   const del = useMutation({
@@ -167,178 +140,195 @@ function AdminBreakfastPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Meeting deleted");
+      toast.success("Deleted");
       qc.invalidateQueries({ queryKey: ["admin-breakfast"] });
       setDeleting(null);
     },
-    onError: (e: any) => toast.error(e?.message ?? "Failed to delete"),
+    onError: (e) => toast.error(e.message || "Failed to delete"),
   });
-
-  const openCreate = () => setEdit(empty);
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader
-        title="Breakfast Meetings"
-        description="Upload the speaker for each bi-weekly Friday breakfast. Members see this on the booking page."
-        count={data?.length}
-        countLabel={data?.length === 1 ? "meeting" : "meetings"}
-        action={{ label: "Add speaker", icon: Plus, onClick: openCreate }}
-      />
-
-      {!isLoading && data && data.length > 0 && (
-        <AdminSearchBar
-          value={search}
-          onChange={setSearch}
-          placeholder="Search by speaker, topic, or role…"
-        />
-      )}
+      <header className="flex items-end justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-widest text-primary font-semibold">Admin</p>
+          <h1 className="text-3xl font-bold mt-1">Breakfast Meetings</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Upload the speaker for each bi-weekly Friday breakfast.
+          </p>
+        </div>
+        <Button onClick={() => setEdit(empty)}>
+          <Plus className="size-4 mr-1.5" /> Add speaker
+        </Button>
+      </header>
 
       {isLoading ? (
-        <div className="py-16 grid place-items-center">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <div className="py-10 grid place-items-center">
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
       ) : !data || data.length === 0 ? (
-        <AdminEmptyState
-          icon={Mic2}
-          title="No meetings yet"
-          description="Add speaker info for an upcoming breakfast. Include a photo, topic, and meeting date."
-          action={{ label: "Add first speaker", onClick: openCreate }}
-        />
-      ) : filtered.length === 0 ? (
-        <AdminEmptyState
-          icon={Mic2}
-          title="No matching meetings"
-          description={`Nothing matches "${search}". Try a different search term.`}
-        />
+        <Card className="p-8 text-center border-dashed">
+          <p className="font-semibold">No meetings yet</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Add the speaker info for an upcoming breakfast.
+          </p>
+        </Card>
       ) : (
         <ul className="grid gap-3">
-          {filtered.map((m) => (
+          {data.map((m) => (
             <li key={m.id}>
-              <AdminResourceCard
-                title={m.speaker_name ?? "Speaker TBA"}
-                subtitle={m.speaker_title ?? undefined}
-                imageUrl={m.speaker_image_url}
-                imageShape="circle"
-                fallbackIcon={Mic2}
-                badges={
-                  !m.is_published ? [{ label: "Hidden", variant: "secondary" }] : undefined
-                }
-                meta={
-                  <div className="space-y-0.5">
-                    <span className="inline-flex items-center gap-1">
-                      <CalendarDays className="size-3 shrink-0" />
-                      {formatMeetingDate(m.meeting_date)}
-                    </span>
-                    {m.topic && <p className="truncate">Topic: {m.topic}</p>}
+              <Card className="p-4 flex items-center gap-4">
+                <div className="size-16 rounded-full bg-muted overflow-hidden flex-shrink-0">
+                  {m.speaker_image_url ? (
+                    <img src={m.speaker_image_url} alt="" className="size-full object-cover" />
+                  ) : (
+                    <div className="size-full grid place-items-center text-muted-foreground">
+                      <Mic2 className="size-5" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold truncate">{m.speaker_name ?? "Speaker TBA"}</h3>
+                    {!m.is_published && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        Hidden
+                      </Badge>
+                    )}
                   </div>
-                }
-                onEdit={() => {
-                  const dt = toLocalInput(m.meeting_date);
-                  setEdit({
-                    __open: true,
-                    ...m,
-                    meeting_date_date: dt.date,
-                    meeting_date_time: dt.time,
-                  });
-                }}
-                onDelete={() => setDeleting(m)}
-              />
+                  <p className="text-xs text-muted-foreground mt-0.5 inline-flex items-center gap-1">
+                    <CalendarDays className="size-3" />
+                    {new Date(m.meeting_date).toLocaleString()}
+                  </p>
+                  {m.topic && (
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                      Topic: {m.topic}
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => {
+                      const dt = toLocalInput(m.meeting_date);
+                      setEdit({
+                        __open: true,
+                        ...m,
+                        meeting_date_date: dt.date,
+                        meeting_date_time: dt.time,
+                      });
+                    }}
+                  >
+                    <Pencil className="size-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="text-destructive"
+                    onClick={() => setDeleting(m)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              </Card>
             </li>
           ))}
         </ul>
       )}
 
       <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)}>
-        <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto p-0 gap-0">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b bg-muted/20">
-            <DialogTitle className="text-xl">
+        <DialogContent className="max-w-lg sm:max-w-2xl max-h-[92vh] flex flex-col gap-0 p-0 overflow-hidden rounded-3xl border-0 shadow-2xl shadow-black/20">
+          <DialogHeader className="px-6 md:px-8 py-5 border-b border-border/60 bg-background/85 backdrop-blur-xl shrink-0 text-left">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-primary font-semibold">
+              Breakfast
+            </p>
+            <DialogTitle
+              className="text-2xl tracking-tight"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
               {edit?.id ? "Edit speaker" : "Add speaker"}
             </DialogTitle>
             <DialogDescription>
-              Appears on the breakfast booking page for all members once published.
+              Appears on the breakfast booking page for everyone.
             </DialogDescription>
           </DialogHeader>
           {edit && (
-            <div className="px-6 py-5 space-y-6">
-              <AdminFormSection title="Speaker photo">
-                <div className="rounded-xl border bg-muted/20 p-4">
+            <ModalBody>
+              <FormSection title="Speaker">
+                <div className="p-4 rounded-xl bg-muted/30 border border-dashed">
                   <ImageUploader
                     value={edit.speaker_image_url}
                     onChange={(url) => setEdit({ ...edit, speaker_image_url: url })}
                     folder="breakfast"
                     shape="circle"
-                    label="Upload photo"
+                    label="Speaker photo"
                   />
                 </div>
-              </AdminFormSection>
-
-              <AdminFormDivider />
-
-              <AdminFormSection title="Meeting details">
-                <AdminDatetimeField
-                  label="Meeting date and time"
-                  required
-                  date={edit.meeting_date_date ?? ""}
-                  time={edit.meeting_date_time ?? ""}
-                  onDateChange={(v) => setEdit({ ...edit, meeting_date_date: v })}
-                  onTimeChange={(v) => setEdit({ ...edit, meeting_date_time: v })}
-                />
-                <AdminField label="Topic">
+                <Field label="Speaker name">
                   <Input
-                    placeholder="What will the speaker talk about?"
-                    value={edit.topic ?? ""}
-                    onChange={(e) => setEdit({ ...edit, topic: e.target.value })}
-                  />
-                </AdminField>
-              </AdminFormSection>
-
-              <AdminFormDivider />
-
-              <AdminFormSection title="Speaker info">
-                <AdminField label="Speaker name">
-                  <Input
-                    placeholder="Full name"
+                    placeholder="e.g. Jane Dlamini"
                     value={edit.speaker_name ?? ""}
                     onChange={(e) => setEdit({ ...edit, speaker_name: e.target.value })}
                   />
-                </AdminField>
-                <AdminField label="Speaker title / role">
+                </Field>
+                <Field label="Speaker title / role">
                   <Input
                     placeholder="e.g. Founder of Acme Co."
                     value={edit.speaker_title ?? ""}
                     onChange={(e) => setEdit({ ...edit, speaker_title: e.target.value })}
                   />
-                </AdminField>
-                <AdminField label="Speaker bio">
+                </Field>
+                <Field label="Topic">
+                  <Input
+                    placeholder="What they'll be speaking about"
+                    value={edit.topic ?? ""}
+                    onChange={(e) => setEdit({ ...edit, topic: e.target.value })}
+                  />
+                </Field>
+                <Field label="Speaker bio">
                   <Textarea
                     rows={4}
-                    placeholder="A short bio members can read before booking"
+                    placeholder="A short introduction to the speaker..."
                     value={edit.speaker_bio ?? ""}
                     onChange={(e) => setEdit({ ...edit, speaker_bio: e.target.value })}
                   />
-                </AdminField>
-              </AdminFormSection>
+                </Field>
+              </FormSection>
 
-              <AdminFormDivider />
+              <FormSection title="Date &amp; time">
+                <DateTimeField
+                  label="Meeting date and time"
+                  required
+                  dateValue={edit.meeting_date_date ?? ""}
+                  timeValue={edit.meeting_date_time ?? ""}
+                  onDate={(v) => setEdit({ ...edit, meeting_date_date: v })}
+                  onTime={(v) => setEdit({ ...edit, meeting_date_time: v })}
+                />
+              </FormSection>
 
-              <AdminStatusToggle
-                id="published"
-                label="Published"
-                description="Hidden meetings won't appear on the booking page."
-                checked={edit.is_published ?? true}
-                onCheckedChange={(v) => setEdit({ ...edit, is_published: v })}
-              />
-            </div>
+              <FormSection title="Visibility">
+                <ToggleRow label="Published" description="Shown on the breakfast booking page.">
+                  <Switch
+                    id="published"
+                    checked={edit.is_published ?? true}
+                    onCheckedChange={(v) => setEdit({ ...edit, is_published: v })}
+                  />
+                </ToggleRow>
+              </FormSection>
+            </ModalBody>
           )}
-          <DialogFooter className="px-6 py-4 border-t bg-muted/20">
-            <Button variant="outline" onClick={() => setEdit(null)}>
-              Cancel
-            </Button>
-            <Button onClick={() => edit && save.mutate(edit)} disabled={save.isPending}>
-              {save.isPending ? <Loader2 className="size-4 animate-spin" /> : "Save meeting"}
-            </Button>
-          </DialogFooter>
+          <ModalFooter
+            hint={
+              edit?.id
+                ? "Saving updates the booking page instantly."
+                : "Adds the speaker to the breakfast booking page."
+            }
+            onCancel={() => setEdit(null)}
+            onSave={() => edit && save.mutate(edit)}
+            saving={save.isPending}
+            saveLabel={edit?.id ? "Save changes" : "Add speaker"}
+          />
         </DialogContent>
       </Dialog>
 

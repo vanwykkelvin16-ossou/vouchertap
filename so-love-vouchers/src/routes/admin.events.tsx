@@ -1,18 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  ModalBody,
+  FormSection,
+  Field,
+  DateTimeField,
+  ToggleRow,
+  ModalFooter,
+} from "@/components/admin/form-kit";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,19 +35,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ImageUploader } from "@/components/image-uploader";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
-import { AdminEmptyState } from "@/components/admin/admin-empty-state";
-import { AdminResourceCard } from "@/components/admin/admin-resource-card";
-import { AdminSearchBar } from "@/components/admin/admin-search-bar";
-import {
-  AdminFormSection,
-  AdminFormDivider,
-  AdminField,
-  AdminDatetimeField,
-  AdminStatusToggle,
-  AdminFormNotice,
-} from "@/components/admin/admin-form";
-import { Plus, Loader2, MapPin, CalendarDays } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, MapPin, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { broadcastPush } from "@/lib/push.functions";
@@ -95,22 +93,11 @@ function combineDatetime(date: string, time: string): string {
   return `${date}T${time || "00:00"}`;
 }
 
-function formatEventDate(iso: string) {
-  return new Date(iso).toLocaleString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 function AdminEventsPage() {
   const qc = useQueryClient();
   useRealtimeInvalidate("events", [["admin-events"]]);
   const [edit, setEdit] = useState<EditState | null>(null);
   const [deleting, setDeleting] = useState<EventRow | null>(null);
-  const [search, setSearch] = useState("");
   const sendPush = useServerFn(broadcastPush);
 
   const { data, isLoading } = useQuery({
@@ -124,18 +111,6 @@ function AdminEventsPage() {
       return data as EventRow[];
     },
   });
-
-  const filtered = useMemo(() => {
-    if (!data) return [];
-    const q = search.trim().toLowerCase();
-    if (!q) return data;
-    return data.filter(
-      (ev) =>
-        ev.title.toLowerCase().includes(q) ||
-        ev.location?.toLowerCase().includes(q) ||
-        ev.description?.toLowerCase().includes(q),
-    );
-  }, [data, search]);
 
   const save = useMutation({
     mutationFn: async (e: EditState) => {
@@ -161,9 +136,16 @@ function AdminEventsPage() {
         if (error) throw error;
       }
 
+      // Auto-send push notification when a new published event is created
       if (isNew && payload.is_published) {
         const title = `New event: ${payload.title}`;
-        const when = formatEventDate(payload.starts_at);
+        const when = new Date(payload.starts_at).toLocaleString(undefined, {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
         const body = `${when}${payload.location ? ` · ${payload.location}` : ""}. Tap for details.`;
         try {
           const res = await sendPush({
@@ -176,17 +158,19 @@ function AdminEventsPage() {
             },
           });
           toast.success(`Notification sent to ${res.sent} device${res.sent === 1 ? "" : "s"}`);
-        } catch (err: any) {
-          toast.error(`Notification not sent: ${err?.message ?? "unknown error"}`);
+        } catch (err) {
+          toast.error(
+            `Notification not sent: ${err instanceof Error ? err.message : "unknown error"}`,
+          );
         }
       }
     },
     onSuccess: () => {
-      toast.success("Event saved");
+      toast.success("Saved");
       qc.invalidateQueries({ queryKey: ["admin-events"] });
       setEdit(null);
     },
-    onError: (e: any) => toast.error(e?.message ?? "Failed to save"),
+    onError: (e) => toast.error(e.message || "Failed to save"),
   });
 
   const del = useMutation({
@@ -195,191 +179,196 @@ function AdminEventsPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Event deleted");
+      toast.success("Deleted");
       qc.invalidateQueries({ queryKey: ["admin-events"] });
       setDeleting(null);
     },
-    onError: (e: any) => toast.error(e?.message ?? "Failed to delete"),
+    onError: (e) => toast.error(e.message || "Failed to delete"),
   });
-
-  const openCreate = () => setEdit(empty);
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader
-        title="Events"
-        description="Create and manage community events. Published events appear in the member app instantly."
-        count={data?.length}
-        countLabel={data?.length === 1 ? "event" : "events"}
-        action={{ label: "New event", icon: Plus, onClick: openCreate }}
-      />
-
-      {!isLoading && data && data.length > 0 && (
-        <AdminSearchBar
-          value={search}
-          onChange={setSearch}
-          placeholder="Search events by title, location, or description…"
-        />
-      )}
+      <header className="flex items-end justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-widest text-primary font-semibold">Admin</p>
+          <h1 className="text-3xl font-bold mt-1">Events</h1>
+        </div>
+        <Button onClick={() => setEdit(empty)}>
+          <Plus className="size-4 mr-1.5" /> New event
+        </Button>
+      </header>
 
       {isLoading ? (
-        <div className="py-16 grid place-items-center">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <div className="py-10 grid place-items-center">
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
       ) : !data || data.length === 0 ? (
-        <AdminEmptyState
-          icon={CalendarDays}
-          title="No events yet"
-          description="Create your first event to show it in the member app. Add a cover image, date, and location to help members plan ahead."
-          action={{ label: "Create first event", onClick: openCreate }}
-        />
-      ) : filtered.length === 0 ? (
-        <AdminEmptyState
-          icon={CalendarDays}
-          title="No matching events"
-          description={`Nothing matches "${search}". Try a different search term.`}
-        />
+        <Card className="p-8 text-center border-dashed">
+          <p className="font-semibold">No events yet</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Create your first event to show it in the app.
+          </p>
+        </Card>
       ) : (
         <ul className="grid gap-3">
-          {filtered.map((ev) => (
+          {data.map((ev) => (
             <li key={ev.id}>
-              <AdminResourceCard
-                title={ev.title}
-                subtitle={ev.description ?? undefined}
-                imageUrl={ev.image_url}
-                fallbackIcon={CalendarDays}
-                badges={
-                  !ev.is_published ? [{ label: "Hidden", variant: "secondary" }] : undefined
-                }
-                meta={
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <Card className="p-4 flex items-center gap-4">
+                <div className="size-16 rounded-md bg-muted overflow-hidden flex-shrink-0">
+                  {ev.image_url ? (
+                    <img src={ev.image_url} alt="" className="size-full object-cover" />
+                  ) : (
+                    <div className="size-full grid place-items-center text-muted-foreground">
+                      <CalendarDays className="size-5" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold truncate">{ev.title}</h3>
+                    {!ev.is_published && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        Hidden
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-3">
                     <span className="inline-flex items-center gap-1">
-                      <CalendarDays className="size-3 shrink-0" />
-                      {formatEventDate(ev.starts_at)}
+                      <CalendarDays className="size-3" />
+                      {new Date(ev.starts_at).toLocaleString()}
                     </span>
                     {ev.location && (
-                      <span className="inline-flex items-center gap-1">
-                        <MapPin className="size-3 shrink-0" />
+                      <span className="inline-flex items-center gap-1 truncate">
+                        <MapPin className="size-3" />
                         {ev.location}
                       </span>
                     )}
-                  </div>
-                }
-                onEdit={() => {
-                  const s = toLocalInput(ev.starts_at);
-                  const en = toLocalInput(ev.ends_at);
-                  setEdit({
-                    __open: true,
-                    ...ev,
-                    starts_date: s.date,
-                    starts_time: s.time,
-                    ends_date: en.date,
-                    ends_time: en.time,
-                  });
-                }}
-                onDelete={() => setDeleting(ev)}
-              />
+                  </p>
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => {
+                      const s = toLocalInput(ev.starts_at);
+                      const en = toLocalInput(ev.ends_at);
+                      setEdit({
+                        __open: true,
+                        ...ev,
+                        starts_date: s.date,
+                        starts_time: s.time,
+                        ends_date: en.date,
+                        ends_time: en.time,
+                      });
+                    }}
+                  >
+                    <Pencil className="size-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="text-destructive"
+                    onClick={() => setDeleting(ev)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              </Card>
             </li>
           ))}
         </ul>
       )}
 
       <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)}>
-        <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto p-0 gap-0">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b bg-muted/20">
-            <DialogTitle className="text-xl">
+        <DialogContent className="max-w-lg sm:max-w-2xl max-h-[92vh] flex flex-col gap-0 p-0 overflow-hidden rounded-3xl border-0 shadow-2xl shadow-black/20">
+          <DialogHeader className="px-6 md:px-8 py-5 border-b border-border/60 bg-background/85 backdrop-blur-xl shrink-0 text-left">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-primary font-semibold">
+              Events
+            </p>
+            <DialogTitle
+              className="text-2xl tracking-tight"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
               {edit?.id ? "Edit event" : "New event"}
             </DialogTitle>
-            <DialogDescription>
-              {edit?.id
-                ? "Update event details. Changes sync to all members immediately."
-                : "Fill in the details below. Members will see this in the app once published."}
-            </DialogDescription>
+            <DialogDescription>Changes appear in the app instantly for everyone.</DialogDescription>
           </DialogHeader>
           {edit && (
-            <div className="px-6 py-5 space-y-6">
-              <AdminFormSection title="Cover image" description="A strong image helps members notice your event.">
+            <ModalBody>
+              <FormSection title="Details">
                 <ImageUploader
                   value={edit.image_url}
                   onChange={(url) => setEdit({ ...edit, image_url: url })}
                   folder="events"
-                  label="Upload event cover"
                 />
-              </AdminFormSection>
-
-              <AdminFormDivider />
-
-              <AdminFormSection title="Event details">
-                <AdminField label="Title" required>
+                <Field label="Title" required>
                   <Input
-                    placeholder="e.g. Community networking evening"
+                    placeholder="e.g. Year-end celebration"
                     value={edit.title ?? ""}
                     onChange={(e) => setEdit({ ...edit, title: e.target.value })}
                   />
-                </AdminField>
-                <AdminField label="Description">
+                </Field>
+                <Field label="Description">
                   <Textarea
                     rows={3}
-                    placeholder="What should members know about this event?"
+                    placeholder="What's happening, who it's for, what to expect..."
                     value={edit.description ?? ""}
                     onChange={(e) => setEdit({ ...edit, description: e.target.value })}
                   />
-                </AdminField>
-                <AdminField label="Location">
+                </Field>
+                <Field label="Location">
                   <Input
-                    placeholder="Venue name or address"
+                    placeholder="e.g. Bella Vista Wedding Venue"
                     value={edit.location ?? ""}
                     onChange={(e) => setEdit({ ...edit, location: e.target.value })}
                   />
-                </AdminField>
-              </AdminFormSection>
+                </Field>
+              </FormSection>
 
-              <AdminFormDivider />
-
-              <AdminFormSection title="Schedule">
-                <AdminDatetimeField
+              <FormSection title="Date &amp; time">
+                <DateTimeField
                   label="Starts at"
                   required
-                  date={edit.starts_date ?? ""}
-                  time={edit.starts_time ?? ""}
-                  onDateChange={(v) => setEdit({ ...edit, starts_date: v })}
-                  onTimeChange={(v) => setEdit({ ...edit, starts_time: v })}
+                  dateValue={edit.starts_date ?? ""}
+                  timeValue={edit.starts_time ?? ""}
+                  onDate={(v) => setEdit({ ...edit, starts_date: v })}
+                  onTime={(v) => setEdit({ ...edit, starts_time: v })}
                 />
-                <AdminDatetimeField
+                <DateTimeField
                   label="Ends at"
-                  date={edit.ends_date ?? ""}
-                  time={edit.ends_time ?? ""}
-                  onDateChange={(v) => setEdit({ ...edit, ends_date: v })}
-                  onTimeChange={(v) => setEdit({ ...edit, ends_time: v })}
+                  dateValue={edit.ends_date ?? ""}
+                  timeValue={edit.ends_time ?? ""}
+                  onDate={(v) => setEdit({ ...edit, ends_date: v })}
+                  onTime={(v) => setEdit({ ...edit, ends_time: v })}
                 />
-              </AdminFormSection>
+              </FormSection>
 
-              <AdminFormDivider />
-
-              <AdminStatusToggle
-                id="published"
-                label="Published"
-                description="Hidden events stay in admin only and won't appear in the app."
-                checked={edit.is_published ?? true}
-                onCheckedChange={(v) => setEdit({ ...edit, is_published: v })}
-              />
-
-              {!edit.id && (
-                <AdminFormNotice>
-                  A push notification is sent automatically to opted-in members when you create a
-                  new published event.
-                </AdminFormNotice>
-              )}
-            </div>
+              <FormSection title="Visibility">
+                <ToggleRow label="Published" description="Visible to all members in the app.">
+                  <Switch
+                    id="published"
+                    checked={edit.is_published ?? true}
+                    onCheckedChange={(v) => setEdit({ ...edit, is_published: v })}
+                  />
+                </ToggleRow>
+                <p className="text-[11px] text-muted-foreground italic">
+                  A push notification is sent automatically to all opted-in members when you create
+                  a new published event.
+                </p>
+              </FormSection>
+            </ModalBody>
           )}
-          <DialogFooter className="px-6 py-4 border-t bg-muted/20">
-            <Button variant="outline" onClick={() => setEdit(null)}>
-              Cancel
-            </Button>
-            <Button onClick={() => edit && save.mutate(edit)} disabled={save.isPending}>
-              {save.isPending ? <Loader2 className="size-4 animate-spin" /> : "Save event"}
-            </Button>
-          </DialogFooter>
+          <ModalFooter
+            hint={
+              edit?.id
+                ? "Saving updates the live app instantly."
+                : "Publishing sends it to every member's app."
+            }
+            onCancel={() => setEdit(null)}
+            onSave={() => edit && save.mutate(edit)}
+            saving={save.isPending}
+            saveLabel={edit?.id ? "Save changes" : "Publish event"}
+          />
         </DialogContent>
       </Dialog>
 

@@ -9,7 +9,8 @@ import { useAuth } from "@/lib/auth-context";
 import { hasAccess } from "@/lib/access-code";
 import { isMemberDisabled } from "@/lib/member-status";
 import { toast } from "sonner";
-import { Heart, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { BrandHeart } from "@/components/brand-heart";
 
 const schema = z.object({
   email: z.string().trim().email("Enter a valid email"),
@@ -95,7 +96,7 @@ function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center text-center mb-8">
           <div className="size-14 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center mb-4">
-            <Heart className="size-7 fill-current" />
+            <BrandHeart className="size-7" />
           </div>
           <h1 className="text-2xl font-bold">{isAdminLogin ? "Admin sign in" : "Welcome back"}</h1>
           <p className="text-sm text-muted-foreground mt-1">

@@ -45,31 +45,31 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Bricolage Grotesque", "Inter", sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "SF Pro Text", sans-serif;
+  --font-display: "Inter Tight", "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
   --radius: 1rem;
-  /* SLK: white / black / signature red */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.18 0.01 270);
+  /* SLK: paper white / ink / signature red — neutrals warmed to feel like ticket stock */
+  --background: oklch(0.995 0.002 85);
+  --foreground: oklch(0.21 0.012 55);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.01 270);
+  --card-foreground: oklch(0.21 0.012 55);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.01 270);
-  --primary: oklch(0.58 0.22 25);              /* signature red */
+  --popover-foreground: oklch(0.21 0.012 55);
+  --primary: oklch(0.58 0.22 25); /* signature red */
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.97 0.005 270);
-  --secondary-foreground: oklch(0.18 0.01 270);
-  --muted: oklch(0.97 0.005 270);
-  --muted-foreground: oklch(0.48 0.01 270);
+  --secondary: oklch(0.966 0.005 80);
+  --secondary-foreground: oklch(0.21 0.012 55);
+  --muted: oklch(0.966 0.005 80);
+  --muted-foreground: oklch(0.47 0.015 55);
   --accent: oklch(0.96 0.02 25);
   --accent-foreground: oklch(0.35 0.18 25);
   --destructive: oklch(0.55 0.23 25);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.92 0.005 270);
-  --input: oklch(0.92 0.005 270);
+  --border: oklch(0.913 0.007 80);
+  --input: oklch(0.913 0.007 80);
   --ring: oklch(0.58 0.22 25);
   --chart-1: oklch(0.58 0.22 25);
   --chart-2: oklch(0.18 0.01 270);
@@ -126,17 +126,31 @@
     border-color: var(--color-border);
   }
 
-  html, body {
+  html,
+  body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01", "ss03";
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
 
-  h1, h2, h3, h4 {
+  h1,
+  h2,
+  h3,
+  h4 {
     font-family: var(--font-display);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.028em;
+    font-weight: 700;
+  }
+
+  /* Tabular numbers app-wide for clean numerals */
+  .tabular-nums,
+  time,
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
   }
 }
 
@@ -152,8 +166,157 @@
 }
 
 @keyframes stamp-in {
-  0% { transform: scale(2) rotate(-20deg); opacity: 0; }
-  60% { transform: scale(0.9) rotate(-12deg); opacity: 1; }
-  100% { transform: scale(1) rotate(-12deg); opacity: 1; }
+  0% {
+    transform: scale(2) rotate(-20deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(0.9) rotate(-12deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(-12deg);
+    opacity: 1;
+  }
 }
-.animate-stamp { animation: stamp-in 0.5s ease-out forwards; }
+.animate-stamp {
+  animation: stamp-in 0.5s ease-out forwards;
+}
+
+/* ============================================================
+   SLK ticket language — perforations, serials, stamps
+   ============================================================ */
+
+/* Serial / code face: tabular, letterspaced, mechanical */
+.font-serial {
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.12em;
+}
+
+/* Tear line: clean dashed rule (notch circles removed by request) */
+.ticket-tear {
+  --tear-inset: 1.25rem;
+  position: relative;
+  height: 0;
+  border-top: 2px dashed var(--color-border);
+}
+
+/* Rubber stamp for redeemed vouchers */
+.slk-stamp {
+  display: inline-block;
+  padding: 0.35em 0.9em;
+  border: 3px solid currentColor;
+  border-radius: 0.4em;
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  transform: rotate(-12deg);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.9 0.25'/%3E%3C/filter%3E%3Crect width='120' height='120' fill='white' filter='url(%23n)'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.9 0.25'/%3E%3C/filter%3E%3Crect width='120' height='120' fill='white' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Gentle entrance for grids */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-rise {
+  animation: rise-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ============================================================
+   Admin form sheets — Apple-inspired filled fields
+   Scoped to .slk-form (the ModalBody of admin create/edit popups)
+   so the rest of the app keeps its outlined inputs.
+   ============================================================ */
+.slk-form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not(.slk-bare),
+.slk-form textarea,
+.slk-form button[role="combobox"] {
+  background-color: color-mix(in oklab, var(--color-muted) 72%, var(--color-background));
+  border-color: transparent;
+  border-radius: calc(var(--radius) - 3px);
+  box-shadow: none;
+  transition:
+    background-color 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+.slk-form
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not(.slk-bare),
+.slk-form button[role="combobox"] {
+  height: 2.75rem;
+  padding-inline: 0.9rem;
+}
+
+/* Composed filled field: the wrapper is the pill, inner input is bare. */
+.slk-form .slk-fieldbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.75rem;
+  padding-inline: 0.9rem;
+  border-radius: calc(var(--radius) - 3px);
+  background-color: color-mix(in oklab, var(--color-muted) 72%, var(--color-background));
+  transition:
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.slk-form .slk-fieldbox:focus-within {
+  background-color: var(--color-background);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-primary) 14%, transparent);
+}
+.slk-form .slk-fieldbox input.slk-bare {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: transparent;
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  padding: 0;
+}
+.slk-form textarea {
+  padding: 0.75rem 0.9rem;
+}
+.slk-form input::placeholder,
+.slk-form textarea::placeholder {
+  color: color-mix(in oklab, var(--color-muted-foreground) 65%, transparent);
+}
+.slk-form input:focus-visible,
+.slk-form textarea:focus-visible,
+.slk-form button[role="combobox"]:focus-visible {
+  background-color: var(--color-background);
+  border-color: color-mix(in oklab, var(--color-primary) 45%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-primary) 14%, transparent);
+  outline: none;
+}
+.slk-form label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-foreground);
+}
+
+/* Accessibility floor */
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-stamp,
+  .animate-rise {
+    animation: none !important;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}

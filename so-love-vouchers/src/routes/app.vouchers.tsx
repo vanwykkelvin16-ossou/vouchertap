@@ -5,12 +5,17 @@ import { useAuth } from "@/lib/auth-context";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { TicketPercent, Loader2, Sparkles, Clock, Store, ChevronDown, FileText } from "lucide-react";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+  TicketPercent,
+  Loader2,
+  Sparkles,
+  Clock,
+  Store,
+  ChevronDown,
+  FileText,
+  Repeat,
+} from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -39,6 +44,7 @@ type Voucher = {
   business_logo_url: string | null;
   claim_window_hours: number;
   terms: string | null;
+  is_recurring: boolean;
 };
 
 function VouchersPage() {
@@ -51,6 +57,7 @@ function VouchersPage() {
     title: string;
     hours: number;
     terms: string | null;
+    recurring?: boolean;
   }>(null);
 
   const { data, isLoading } = useQuery({
@@ -60,16 +67,27 @@ function VouchersPage() {
         supabase
           .from("vouchers")
           .select(
-            "id, title, description, value_text, image_url, business_name, business_logo_url, claim_window_hours, terms",
+            "id, title, description, value_text, image_url, business_name, business_logo_url, claim_window_hours, terms, is_recurring",
           )
           .eq("is_active", true)
           .order("created_at", { ascending: false }),
-        supabase.from("voucher_claims").select("voucher_id").eq("user_id", user!.id),
+        supabase.from("voucher_claims").select("voucher_id, cycle_key").eq("user_id", user!.id),
       ]);
       if (vouchersRes.error) throw vouchersRes.error;
       if (claimsRes.error) throw claimsRes.error;
-      const claimed = new Set(claimsRes.data.map((c) => c.voucher_id));
-      return (vouchersRes.data as Voucher[]).filter((v) => !claimed.has(v.id));
+      // Recurring vouchers re-open every calendar month: only this month's
+      // claim hides them. Normal vouchers stay hidden after any claim.
+      const now = new Date();
+      const thisCycle = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const claimedOnce = new Set(
+        claimsRes.data.filter((c) => c.cycle_key === "once").map((c) => c.voucher_id),
+      );
+      const claimedThisMonth = new Set(
+        claimsRes.data.filter((c) => c.cycle_key === thisCycle).map((c) => c.voucher_id),
+      );
+      return (vouchersRes.data as Voucher[]).filter((v) =>
+        v.is_recurring ? !claimedThisMonth.has(v.id) : !claimedOnce.has(v.id),
+      );
     },
     enabled: !!user?.id,
   });
@@ -87,12 +105,18 @@ function VouchersPage() {
       qc.invalidateQueries({ queryKey: ["vouchers"] });
       qc.invalidateQueries({ queryKey: ["my-vouchers"] });
       setConfirming(null);
-      navigate({ to: "/app/voucher/$id", params: { id: (claim as any).id } });
+      navigate({ to: "/app/voucher/$id", params: { id: (claim as { id: string }).id } });
     },
-    onError: (e: any) => {
-      const msg = e?.message ?? "Could not claim";
-      if (msg.includes("voucher_claims_voucher_id_user_id_key") || msg.includes("already claimed")) {
-        toast.error("You've already claimed this voucher.");
+    onError: (e) => {
+      const msg = e.message ?? "Could not claim";
+      if (
+        msg.includes("voucher_claims_voucher_user_cycle_key") ||
+        msg.includes("voucher_claims_voucher_id_user_id_key") ||
+        msg.includes("already claimed")
+      ) {
+        toast.error(
+          "You've already claimed this voucher for now - recurring vouchers re-open next month.",
+        );
       } else if (msg.includes("voucher_not_available")) {
         toast.error("This voucher is no longer available.");
       } else if (msg.includes("voucher_expired")) {
@@ -111,9 +135,7 @@ function VouchersPage() {
           <p className="text-xs uppercase tracking-widest text-primary font-semibold">
             Members only
           </p>
-          <h1 className="text-3xl md:text-5xl font-bold mt-2 tracking-tight">
-            Vouchers
-          </h1>
+          <h1 className="text-3xl md:text-5xl font-bold mt-2 tracking-tight">Vouchers</h1>
           <p className="text-sm md:text-base text-muted-foreground mt-2 max-w-xl">
             Tap to claim. Each voucher is one-per-member and tied to your account.
           </p>
@@ -138,9 +160,13 @@ function VouchersPage() {
         </Card>
       ) : (
         <ul className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {data.map((v) => (
-            <li key={v.id}>
-              <Card className="group relative overflow-hidden border-border/70 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-full flex flex-col">
+          {data.map((v, i) => (
+            <li
+              key={v.id}
+              className="animate-rise"
+              style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}
+            >
+              <Card className="group relative overflow-hidden rounded-2xl border-border/60 shadow-lg shadow-black/[0.04] ring-1 ring-black/[0.02] hover:shadow-xl hover:shadow-black/[0.08] hover:-translate-y-1 hover:border-primary/40 transition-all duration-300 ease-out h-full flex flex-col">
                 {/* Cover with overlay */}
                 <div className="relative h-48 bg-gradient-to-br from-primary/15 via-primary/5 to-muted overflow-hidden">
                   {v.image_url ? (
@@ -158,14 +184,22 @@ function VouchersPage() {
                   {/* Dark gradient for text legibility */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
 
-                  {v.value_text && (
-                    <div className="absolute top-3 right-3">
+                  <div className="absolute top-3 inset-x-3 flex items-start justify-between gap-2">
+                    {v.is_recurring ? (
+                      <Badge className="bg-white/95 text-foreground shadow-md font-semibold gap-1">
+                        <Repeat className="size-3 text-primary" />
+                        Monthly
+                      </Badge>
+                    ) : (
+                      <span />
+                    )}
+                    {v.value_text && (
                       <Badge className="bg-primary text-primary-foreground shadow-md font-bold">
                         <Sparkles className="size-3 mr-1" />
                         {v.value_text}
                       </Badge>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
                   {/* Logo + business name overlay inside the image */}
                   <div className="absolute inset-x-0 bottom-0 p-4 flex items-center gap-3">
@@ -183,8 +217,6 @@ function VouchersPage() {
                       )}
                     </div>
 
-
-
                     {v.business_name && (
                       <p className="text-sm font-semibold text-white drop-shadow-md tracking-wide truncate">
                         {v.business_name}
@@ -196,9 +228,7 @@ function VouchersPage() {
                 {/* Body */}
                 <div className="px-5 pt-5 pb-5 flex-1 flex flex-col">
                   <div className="flex-1">
-                    <h2 className="text-lg font-bold leading-tight">
-                      {v.title}
-                    </h2>
+                    <h2 className="text-lg font-bold leading-tight">{v.title}</h2>
                     {v.description && (
                       <p className="text-sm text-muted-foreground mt-2 line-clamp-2 leading-relaxed">
                         {v.description}
@@ -206,14 +236,19 @@ function VouchersPage() {
                     )}
                   </div>
 
-                  {/* Dashed divider */}
-                  <div className="mt-4 mb-4 border-t border-dashed border-border" />
+                  {/* Perforated tear line */}
+                  <div className="ticket-tear mt-4 mb-4" aria-hidden="true" />
 
                   <div className="flex items-center justify-between gap-3">
-                    <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                      <Clock className="size-3.5" />
-                      {v.claim_window_hours}h to redeem
-                    </span>
+                    <div className="min-w-0">
+                      <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <Clock className="size-3.5" />
+                        {v.claim_window_hours}h to redeem
+                      </span>
+                      <p className="font-serial text-[10px] text-muted-foreground/70 mt-1">
+                        Nº SLK-{v.id.slice(0, 4).toUpperCase()}
+                      </p>
+                    </div>
                     <Button
                       className="font-semibold gap-2 px-5 py-2.5 h-auto rounded-full shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200"
                       onClick={() =>
@@ -222,6 +257,7 @@ function VouchersPage() {
                           title: v.title,
                           hours: v.claim_window_hours,
                           terms: v.terms,
+                          recurring: v.is_recurring,
                         })
                       }
                     >
@@ -243,7 +279,9 @@ function VouchersPage() {
             <AlertDialogDescription>
               Once claimed, "{confirming?.title}" is yours and yours alone - you'll have{" "}
               {confirming?.hours} hours to redeem it in person at So Love Krugersdorp.
-              This action can't be undone.
+              {confirming?.recurring
+                ? " This one renews monthly, so it'll be back for you next month."
+                : " This action can't be undone."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {confirming?.terms && (

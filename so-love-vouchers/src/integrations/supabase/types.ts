@@ -107,30 +107,60 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null;
+          business_email: string | null;
+          business_logo_url: string | null;
+          business_name: string | null;
+          business_website: string | null;
           created_at: string;
           disabled_at: string | null;
           display_name: string | null;
           email: string | null;
+          first_name: string | null;
           id: string;
+          last_name: string | null;
+          onboarding_completed_at: string | null;
+          phone: string | null;
+          slk_code: string | null;
           updated_at: string;
+          work_phone: string | null;
         };
         Insert: {
           avatar_url?: string | null;
+          business_email?: string | null;
+          business_logo_url?: string | null;
+          business_name?: string | null;
+          business_website?: string | null;
           created_at?: string;
           disabled_at?: string | null;
           display_name?: string | null;
           email?: string | null;
+          first_name?: string | null;
           id: string;
+          last_name?: string | null;
+          onboarding_completed_at?: string | null;
+          phone?: string | null;
+          slk_code?: string | null;
           updated_at?: string;
+          work_phone?: string | null;
         };
         Update: {
           avatar_url?: string | null;
+          business_email?: string | null;
+          business_logo_url?: string | null;
+          business_name?: string | null;
+          business_website?: string | null;
           created_at?: string;
           disabled_at?: string | null;
           display_name?: string | null;
           email?: string | null;
+          first_name?: string | null;
           id?: string;
+          last_name?: string | null;
+          onboarding_completed_at?: string | null;
+          phone?: string | null;
+          slk_code?: string | null;
           updated_at?: string;
+          work_phone?: string | null;
         };
         Relationships: [];
       };
@@ -173,6 +203,54 @@ export type Database = {
         };
         Relationships: [];
       };
+      shop_products: {
+        Row: {
+          category: string;
+          colors: string[];
+          created_at: string;
+          description: string | null;
+          id: string;
+          image_url: string | null;
+          images: string[];
+          is_active: boolean;
+          name: string;
+          price: number;
+          sizes: string[];
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          category?: string;
+          colors?: string[];
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          image_url?: string | null;
+          images?: string[];
+          is_active?: boolean;
+          name: string;
+          price?: number;
+          sizes?: string[];
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          category?: string;
+          colors?: string[];
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          image_url?: string | null;
+          images?: string[];
+          is_active?: boolean;
+          name?: string;
+          price?: number;
+          sizes?: string[];
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       user_roles: {
         Row: {
           created_at: string;
@@ -197,6 +275,7 @@ export type Database = {
       voucher_claims: {
         Row: {
           claimed_at: string;
+          cycle_key: string;
           expires_at: string;
           id: string;
           redeemed_at: string | null;
@@ -205,6 +284,7 @@ export type Database = {
         };
         Insert: {
           claimed_at?: string;
+          cycle_key?: string;
           expires_at: string;
           id?: string;
           redeemed_at?: string | null;
@@ -213,6 +293,7 @@ export type Database = {
         };
         Update: {
           claimed_at?: string;
+          cycle_key?: string;
           expires_at?: string;
           id?: string;
           redeemed_at?: string | null;
@@ -243,6 +324,7 @@ export type Database = {
           id: string;
           image_url: string | null;
           is_active: boolean;
+          is_recurring: boolean;
           terms: string | null;
           title: string;
           value_text: string | null;
@@ -260,6 +342,7 @@ export type Database = {
           id?: string;
           image_url?: string | null;
           is_active?: boolean;
+          is_recurring?: boolean;
           terms?: string | null;
           title: string;
           value_text?: string | null;
@@ -277,6 +360,7 @@ export type Database = {
           id?: string;
           image_url?: string | null;
           is_active?: boolean;
+          is_recurring?: boolean;
           terms?: string | null;
           title?: string;
           value_text?: string | null;
@@ -292,6 +376,7 @@ export type Database = {
         Args: { _voucher_id: string };
         Returns: {
           claimed_at: string;
+          cycle_key: string;
           expires_at: string;
           id: string;
           redeemed_at: string | null;
@@ -305,6 +390,7 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      delete_member: { Args: { _user_id: string }; Returns: undefined };
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"];
@@ -312,14 +398,11 @@ export type Database = {
         };
         Returns: boolean;
       };
-      is_admin: {
-        Args: Record<PropertyKey, never>;
-        Returns: boolean;
-      };
       redeem_voucher_claim: {
         Args: { _claim_id: string };
         Returns: {
           claimed_at: string;
+          cycle_key: string;
           expires_at: string;
           id: string;
           redeemed_at: string | null;

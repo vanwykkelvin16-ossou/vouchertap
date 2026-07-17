@@ -68,7 +68,7 @@ BEGIN
   ON CONFLICT DO NOTHING;
 
   -- Grant admin role automatically to the configured admin email
-  IF lower(NEW.email) = 'admin@slkd.co.za' THEN
+  IF lower(NEW.email) = 'vanwykkelvin16@gmail.com' THEN
     INSERT INTO public.user_roles (user_id, role) VALUES (NEW.id, 'admin')
     ON CONFLICT DO NOTHING;
   END IF;
@@ -115,8 +115,6 @@ CREATE TABLE public.vouchers (
   image_url TEXT,
   business_name TEXT,
   business_logo_url TEXT,
-  business_phone TEXT,
-  business_address TEXT,
   value_text TEXT,
   terms TEXT,
   claim_window_hours INTEGER NOT NULL DEFAULT 48,

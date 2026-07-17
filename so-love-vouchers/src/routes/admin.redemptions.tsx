@@ -96,7 +96,8 @@ function AdminRedemptionsPage() {
     if (!data) return [];
     return data.filter((c) => {
       const d = new Date(c.claimed_at);
-      const monthOk = activeMonth === "all" || String(d.getMonth() + 1).padStart(2, "0") === activeMonth;
+      const monthOk =
+        activeMonth === "all" || String(d.getMonth() + 1).padStart(2, "0") === activeMonth;
       const yearOk = activeYear === "all" || String(d.getFullYear()) === activeYear;
       return monthOk && yearOk;
     });
@@ -106,9 +107,7 @@ function AdminRedemptionsPage() {
     <div className="space-y-6">
       <header className="flex items-end justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-widest text-primary font-semibold">
-            Admin
-          </p>
+          <p className="text-xs uppercase tracking-widest text-primary font-semibold">Admin</p>
           <h1 className="text-3xl font-bold mt-1">Redemptions</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Live feed of voucher claims and redemptions.
@@ -183,9 +182,7 @@ function AdminRedemptionsPage() {
                 return (
                   <tr key={c.id} className="border-b border-border last:border-0">
                     <td className="p-3 align-top">
-                      <div className="font-medium">
-                        {c.profiles?.display_name ?? "-"}
-                      </div>
+                      <div className="font-medium">{c.profiles?.display_name ?? "-"}</div>
                       <div className="text-xs text-muted-foreground truncate max-w-[180px]">
                         {c.profiles?.email}
                       </div>
@@ -193,9 +190,7 @@ function AdminRedemptionsPage() {
                     <td className="p-3 align-top">
                       <div className="font-medium">{c.vouchers?.title ?? "-"}</div>
                       {c.vouchers?.value_text && (
-                        <div className="text-xs text-muted-foreground">
-                          {c.vouchers.value_text}
-                        </div>
+                        <div className="text-xs text-muted-foreground">{c.vouchers.value_text}</div>
                       )}
                     </td>
                     <td className="p-3 align-top">
@@ -233,7 +228,15 @@ function AdminRedemptionsPage() {
 }
 
 function exportCsv(rows: ClaimRow[]) {
-  const header = ["member_email", "member_name", "voucher", "value", "status", "claimed_at", "redeemed_at"];
+  const header = [
+    "member_email",
+    "member_name",
+    "voucher",
+    "value",
+    "status",
+    "claimed_at",
+    "redeemed_at",
+  ];
   const body = rows.map((c) => {
     const status = c.redeemed_at
       ? "redeemed"

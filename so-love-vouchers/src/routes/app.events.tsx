@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CalendarDays, MapPin, Loader2, Pin, Clock } from "lucide-react";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime";
-import breakfastHero from "@/assets/slk-breakfast.png.asset.json";
+import { SmartImage } from "@/components/smart-image";
+
+// Pinned SLK Breakfast card cover (public/breakfast-cover.jpg).
+const BREAKFAST_COVER = "/breakfast-cover.jpg";
 
 function isRsvpEvent(title: string | null | undefined) {
   return !!title && title.toLowerCase().includes("slk breakfast");
@@ -31,12 +34,12 @@ function PinnedBreakfastCard() {
   const date = nextBiweeklyFriday();
   return (
     <Card className="group overflow-hidden border-border/60 bg-card rounded-2xl shadow-lg shadow-black/[0.04] ring-1 ring-black/[0.02] hover:shadow-xl hover:shadow-black/[0.08] hover:-translate-y-1 hover:border-primary/40 transition-all duration-300 ease-out h-full flex flex-col">
-      <div className="relative aspect-[16/10] bg-muted overflow-hidden">
-        <img
-          src={breakfastHero.url}
+      <div className="relative">
+        <SmartImage
+          src={BREAKFAST_COVER}
           alt="SLK Breakfast Meeting"
-          className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-          loading="lazy"
+          wrapperClassName="aspect-[16/10]"
+          className="transition-transform duration-500 group-hover:scale-[1.03]"
         />
         <Badge className="absolute top-3 left-3 gap-1 bg-background/90 text-foreground backdrop-blur-sm border border-border/50 shadow-sm font-medium">
           <Pin className="size-3 text-primary" /> Pinned
@@ -52,7 +55,8 @@ function PinnedBreakfastCard() {
           </h2>
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
-          Connect, hear from inspiring speakers, and share a meal with the SLK community every second Friday morning.
+          Connect, hear from inspiring speakers, and share a meal with the SLK community every
+          second Friday morning.
         </p>
         <div className="mt-1 space-y-2.5 text-sm">
           <div className="flex items-center gap-2.5">
@@ -66,7 +70,11 @@ function PinnedBreakfastCard() {
               <CalendarDays className="size-3.5" />
             </span>
             <span className="font-medium text-foreground">
-              {date.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}
+              {date.toLocaleDateString(undefined, {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+              })}
             </span>
           </div>
           <div className="flex items-center gap-2.5">
@@ -108,12 +116,9 @@ function EventsPage() {
           <p className="text-xs uppercase tracking-widest text-primary font-semibold">
             So Love Krugersdorp
           </p>
-          <h1 className="text-3xl md:text-5xl font-bold mt-3 tracking-tight">
-            Upcoming events
-          </h1>
+          <h1 className="text-3xl md:text-5xl font-bold mt-3 tracking-tight">Upcoming events</h1>
           <p className="text-sm md:text-base text-muted-foreground mt-3 max-w-xl">
-            What's happening soon at SLK — gatherings, breakfasts and exclusive
-            member experiences.
+            What's happening soon at SLK — gatherings, breakfasts and exclusive member experiences.
           </p>
         </div>
         <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
@@ -128,75 +133,79 @@ function EventsPage() {
         </div>
       ) : (
         <ul className="grid gap-6 md:gap-8 md:grid-cols-2 xl:grid-cols-3">
-          <li>
+          <li className="animate-rise">
             <PinnedBreakfastCard />
           </li>
           {(data ?? [])
             .filter((e) => !isRsvpEvent(e.title))
-            .map((event) => (
-            <li key={event.id}>
-              <Card className="group overflow-hidden border-border/60 bg-card rounded-2xl shadow-lg shadow-black/[0.04] ring-1 ring-black/[0.02] hover:shadow-xl hover:shadow-black/[0.08] hover:-translate-y-1 hover:border-primary/40 transition-all duration-300 ease-out h-full flex flex-col">
-                {event.image_url && (
-                  <div className="aspect-[16/10] bg-muted overflow-hidden">
-                    <img
+            .map((event, i) => (
+              <li
+                key={event.id}
+                className="animate-rise"
+                style={{ animationDelay: `${Math.min(i + 1, 8) * 60}ms` }}
+              >
+                <Card className="group overflow-hidden border-border/60 bg-card rounded-2xl shadow-lg shadow-black/[0.04] ring-1 ring-black/[0.02] hover:shadow-xl hover:shadow-black/[0.08] hover:-translate-y-1 hover:border-primary/40 transition-all duration-300 ease-out h-full flex flex-col">
+                  {event.image_url && (
+                    <SmartImage
                       src={event.image_url}
                       alt={event.title}
-                      className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                      loading="lazy"
+                      wrapperClassName="aspect-[16/10]"
+                      className="transition-transform duration-500 group-hover:scale-[1.03]"
                     />
-                  </div>
-                )}
-                <div className="p-6 flex-1 flex flex-col gap-4">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-primary font-semibold">
-                      {new Date(event.starts_at).toLocaleDateString(undefined, { weekday: "long" })}
-                    </p>
-                    <h2 className="text-xl font-semibold leading-snug mt-2 tracking-tight">
-                      {event.title}
-                    </h2>
-                  </div>
-                  {event.description && (
-                    <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
-                      {event.description}
-                    </p>
                   )}
-                  <div className="mt-1 space-y-2.5 text-sm">
-                    <div className="flex items-center gap-2.5">
-                      <span className="grid place-items-center size-7 rounded-lg bg-primary/10 text-primary shrink-0">
-                        <Clock className="size-3.5" />
-                      </span>
-                      <span className="font-medium text-foreground">
-                        {new Date(event.starts_at).toLocaleTimeString(undefined, {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2.5">
-                      <span className="grid place-items-center size-7 rounded-lg bg-primary/10 text-primary shrink-0">
-                        <CalendarDays className="size-3.5" />
-                      </span>
-                      <span className="font-medium text-foreground">
+                  <div className="p-6 flex-1 flex flex-col gap-4">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-primary font-semibold">
                         {new Date(event.starts_at).toLocaleDateString(undefined, {
                           weekday: "long",
-                          day: "numeric",
-                          month: "long",
                         })}
-                      </span>
+                      </p>
+                      <h2 className="text-xl font-semibold leading-snug mt-2 tracking-tight">
+                        {event.title}
+                      </h2>
                     </div>
-                    {event.location && (
+                    {event.description && (
+                      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
+                        {event.description}
+                      </p>
+                    )}
+                    <div className="mt-1 space-y-2.5 text-sm">
                       <div className="flex items-center gap-2.5">
                         <span className="grid place-items-center size-7 rounded-lg bg-primary/10 text-primary shrink-0">
-                          <MapPin className="size-3.5" />
+                          <Clock className="size-3.5" />
                         </span>
-                        <span className="font-medium text-foreground">{event.location}</span>
+                        <span className="font-medium text-foreground">
+                          {new Date(event.starts_at).toLocaleTimeString(undefined, {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
                       </div>
-                    )}
+                      <div className="flex items-center gap-2.5">
+                        <span className="grid place-items-center size-7 rounded-lg bg-primary/10 text-primary shrink-0">
+                          <CalendarDays className="size-3.5" />
+                        </span>
+                        <span className="font-medium text-foreground">
+                          {new Date(event.starts_at).toLocaleDateString(undefined, {
+                            weekday: "long",
+                            day: "numeric",
+                            month: "long",
+                          })}
+                        </span>
+                      </div>
+                      {event.location && (
+                        <div className="flex items-center gap-2.5">
+                          <span className="grid place-items-center size-7 rounded-lg bg-primary/10 text-primary shrink-0">
+                            <MapPin className="size-3.5" />
+                          </span>
+                          <span className="font-medium text-foreground">{event.location}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </Card>
-            </li>
-          ))}
+                </Card>
+              </li>
+            ))}
         </ul>
       )}
     </div>

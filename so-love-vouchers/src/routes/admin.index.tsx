@@ -1,30 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-  CalendarDays,
-  Ticket,
-  Receipt,
-  Users,
-  Loader2,
-  ArrowRight,
-  Bell,
-} from "lucide-react";
-import { toast } from "sonner";
+import { CalendarDays, Ticket, Receipt, Users, Loader2, ArrowRight, Sparkles } from "lucide-react";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
-import { sendTestPush } from "@/lib/push.functions";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboard,
 });
 
 function AdminDashboard() {
-  const testPush = useServerFn(sendTestPush);
   useRealtimeInvalidate("vouchers", [["admin-stats"]]);
   useRealtimeInvalidate("events", [["admin-stats"]]);
   useRealtimeInvalidate("voucher_claims", [["admin-stats"]]);
@@ -61,87 +46,103 @@ function AdminDashboard() {
     staleTime: 60_000,
   });
 
+  const today = new Date().toLocaleDateString("en-ZA", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+
   return (
     <div className="space-y-8">
-      <AdminPageHeader
-        title="Dashboard"
-        description="Live overview of your app. Stats update in real time as members interact."
-      />
+      <header className="flex items-end justify-between gap-4 border-b border-border pb-6">
+        <div>
+          <p className="text-xs uppercase tracking-widest text-primary font-semibold">Admin</p>
+          <h1
+            className="text-3xl md:text-4xl font-bold mt-1 tracking-tight"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Dashboard
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1.5">
+            {today} · live overview, updates in real-time.
+          </p>
+        </div>
+        <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/60 border border-border/60 rounded-full px-3 py-1.5">
+          <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+        </span>
+      </header>
 
       {isLoading || !data ? (
-        <div className="py-16 grid place-items-center">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <div className="py-10 grid place-items-center">
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-            <Stat icon={Ticket} label="Active vouchers" value={data.vouchers} accent="primary" />
-            <Stat icon={CalendarDays} label="Events" value={data.events} accent="blue" />
-            <Stat icon={Users} label="Members" value={data.members} accent="violet" />
-            <Stat icon={Receipt} label="Claims today" value={data.claimsToday} accent="amber" />
-            <Stat icon={Receipt} label="Redeemed today" value={data.redeemedToday} accent="emerald" />
-          </div>
-
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Quick actions
+        <div className="space-y-8">
+          <section>
+            <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-semibold mb-3">
+              Today
             </h2>
-            <div className="grid sm:grid-cols-3 gap-3">
-              <QuickAction
-                to="/admin/events"
-                icon={CalendarDays}
-                label="New event"
-                description="Schedule a community event"
-              />
-              <QuickAction
-                to="/admin/vouchers"
-                icon={Ticket}
-                label="New voucher"
-                description="Create a member offer"
-              />
-              <QuickAction
-                to="/admin/breakfast"
-                icon={Users}
-                label="Add speaker"
-                description="Update breakfast meeting"
-              />
+            <div className="grid grid-cols-2 gap-3 md:gap-4">
+              <Stat icon={Ticket} label="Vouchers claimed" value={data.claimsToday} highlight />
+              <Stat icon={Receipt} label="Vouchers redeemed" value={data.redeemedToday} highlight />
             </div>
           </section>
 
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Push notifications
+          <section>
+            <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-semibold mb-3">
+              Overall
             </h2>
-            <Card className="p-4 border-border/80 space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Enable notifications on your profile first, then send a test to this device.
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  try {
-                    const res = await testPush({ data: {} });
-                    if (res.sent > 0) {
-                      toast.success("Test push sent — check your lock screen.");
-                    } else if (res.errors.length > 0) {
-                      toast.error(`Push failed: ${res.errors[0]}`);
-                    } else {
-                      toast.error("No subscription on this device. Enable notifications in Profile.");
-                    }
-                  } catch (e: unknown) {
-                    toast.error(e instanceof Error ? e.message : "Test push failed");
-                  }
-                }}
-              >
-                <Bell className="size-4 mr-2" />
-                Send test notification
-              </Button>
-            </Card>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+              <Stat icon={Ticket} label="Active vouchers" value={data.vouchers} />
+              <Stat icon={CalendarDays} label="Events" value={data.events} />
+              <Stat icon={Users} label="Customers" value={data.members} />
+            </div>
           </section>
-        </>
+
+          <section>
+            <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground font-semibold mb-3">
+              Quick actions
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              <QuickLink to="/admin/vouchers" label="New voucher" />
+              <QuickLink to="/admin/events" label="New event" />
+              <QuickLink to="/admin/redemptions" label="View redemptions" />
+              <QuickLink to="/admin/members" label="Customers" />
+            </div>
+          </section>
+
+          <Card className="rounded-2xl shadow-lg shadow-black/[0.04] ring-1 ring-black/[0.02] p-5 flex items-center gap-4">
+            <div className="size-10 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
+              <Sparkles className="size-5" />
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Everything you publish here — events, vouchers, shop items and contact info — goes
+              live in every member's app{" "}
+              <span className="font-semibold text-foreground">instantly</span>, with automatic push
+              notifications for new events and vouchers.
+            </p>
+          </Card>
+        </div>
       )}
     </div>
+  );
+}
+
+function QuickLink({
+  to,
+  label,
+}: {
+  to: "/admin/vouchers" | "/admin/events" | "/admin/redemptions" | "/admin/members";
+  label: string;
+}) {
+  return (
+    <Link
+      to={to}
+      className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium shadow-sm hover:border-primary/40 hover:text-primary hover:-translate-y-0.5 transition-all"
+    >
+      {label}
+      <ArrowRight className="size-3.5" />
+    </Link>
   );
 }
 
@@ -149,64 +150,35 @@ function Stat({
   icon: Icon,
   label,
   value,
-  accent,
+  highlight,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: number;
-  accent: "primary" | "blue" | "violet" | "amber" | "emerald";
-}) {
-  const accentClasses = {
-    primary: "bg-primary/10 text-primary",
-    blue: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
-    violet: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
-    amber: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-    emerald: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  };
-
-  return (
-    <Card className="p-5 border-border/80 hover:shadow-sm transition-shadow">
-      <div className="flex items-start justify-between gap-3">
-        <span className="text-xs font-medium text-muted-foreground leading-snug">{label}</span>
-        <div className={cn("grid size-8 place-items-center rounded-lg", accentClasses[accent])}>
-          <Icon className="size-4" />
-        </div>
-      </div>
-      <p className="text-3xl font-bold mt-3 tracking-tight">{value}</p>
-    </Card>
-  );
-}
-
-function QuickAction({
-  to,
-  icon: Icon,
-  label,
-  description,
-}: {
-  to: string;
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  description: string;
+  highlight?: boolean;
 }) {
   return (
-    <Card className="group overflow-hidden border-border/80 hover:border-primary/25 hover:shadow-md transition-all">
-      <div className="p-4 flex flex-col h-full">
-        <div className="flex items-center gap-2.5">
-          <div className="grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
-            <Icon className="size-4" />
-          </div>
-          <div className="min-w-0">
-            <p className="font-semibold text-sm">{label}</p>
-            <p className="text-xs text-muted-foreground">{description}</p>
-          </div>
-        </div>
-        <Button asChild variant="ghost" size="sm" className="mt-4 w-full justify-between group-hover:bg-muted/60">
-          <Link to={to as any}>
-            Go
-            <ArrowRight className="size-3.5" />
-          </Link>
-        </Button>
+    <Card
+      className={`rounded-2xl shadow-lg shadow-black/[0.04] ring-1 ring-black/[0.02] p-5 relative overflow-hidden transition-all hover:shadow-xl hover:shadow-black/[0.07] ${
+        highlight ? "border-primary/25" : "border-border/60"
+      }`}
+    >
+      {highlight && <div className="absolute inset-y-0 left-0 w-1 bg-primary" />}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold truncate">
+          {label}
+        </span>
+        <span className="grid place-items-center size-7 rounded-lg bg-primary/10 text-primary shrink-0">
+          <Icon className="size-3.5" />
+        </span>
       </div>
+      <p
+        className="text-4xl font-bold mt-3 tracking-tight"
+        style={{ fontFamily: "var(--font-display)" }}
+        data-numeric
+      >
+        {value}
+      </p>
     </Card>
   );
 }
