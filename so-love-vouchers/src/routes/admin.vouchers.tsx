@@ -41,6 +41,7 @@ import { Plus, Loader2, Ticket, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { broadcastPush } from "@/lib/push.functions";
+import type { Database } from "@/integrations/supabase/types";
 
 export const Route = createFileRoute("/admin/vouchers")({
   component: AdminVouchersPage,
@@ -55,6 +56,8 @@ type VoucherRow = {
   image_url: string | null;
   business_name: string | null;
   business_logo_url: string | null;
+  business_phone: string | null;
+  business_address: string | null;
   claim_window_hours: number;
   available_from: string;
   available_until: string | null;
@@ -69,6 +72,8 @@ type EditState = Partial<VoucherRow> & {
   available_until_time?: string;
 };
 
+type VoucherPayload = Database["public"]["Tables"]["vouchers"]["Insert"];
+
 const empty: EditState = {
   __open: true,
   title: "",
@@ -78,6 +83,8 @@ const empty: EditState = {
   image_url: null,
   business_name: "",
   business_logo_url: null,
+  business_phone: "",
+  business_address: "",
   claim_window_hours: 48,
   available_from: "",
   available_until: "",
@@ -101,6 +108,10 @@ function toLocalInput(iso: string | null | undefined) {
 function combineDatetime(date: string, time: string): string {
   if (!date) return "";
   return `${date}T${time || "00:00"}`;
+}
+
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 function AdminVouchersPage() {
@@ -139,7 +150,7 @@ function AdminVouchersPage() {
     mutationFn: async (e: EditState) => {
       const fromStr = combineDatetime(e.available_from_date ?? "", e.available_from_time ?? "");
       const untilStr = combineDatetime(e.available_until_date ?? "", e.available_until_time ?? "");
-      const payload: any = {
+      const payload: VoucherPayload = {
         title: (e.title ?? "").trim(),
         description: e.description || null,
         value_text: e.value_text || null,
@@ -147,6 +158,8 @@ function AdminVouchersPage() {
         image_url: e.image_url ?? null,
         business_name: e.business_name || null,
         business_logo_url: e.business_logo_url ?? null,
+        business_phone: e.business_phone || null,
+        business_address: e.business_address || null,
         claim_window_hours: Number(e.claim_window_hours) || 48,
         available_from: fromStr ? new Date(fromStr).toISOString() : new Date().toISOString(),
         available_until: untilStr ? new Date(untilStr).toISOString() : null,
@@ -178,8 +191,8 @@ function AdminVouchersPage() {
             },
           });
           toast.success(`Notification sent to ${res.sent} device${res.sent === 1 ? "" : "s"}`);
-        } catch (err: any) {
-          toast.error(`Notification not sent: ${err?.message ?? "unknown error"}`);
+        } catch (error: unknown) {
+          toast.error(`Notification not sent: ${errorMessage(error, "unknown error")}`);
         }
       }
     },
@@ -188,7 +201,7 @@ function AdminVouchersPage() {
       qc.invalidateQueries({ queryKey: ["admin-vouchers"] });
       setEdit(null);
     },
-    onError: (e: any) => toast.error(e?.message ?? "Failed to save"),
+    onError: (error: unknown) => toast.error(errorMessage(error, "Failed to save")),
   });
 
   const del = useMutation({
@@ -201,7 +214,7 @@ function AdminVouchersPage() {
       qc.invalidateQueries({ queryKey: ["admin-vouchers"] });
       setDeleting(null);
     },
-    onError: (e: any) => toast.error(e?.message ?? "Failed to delete"),
+    onError: (error: unknown) => toast.error(errorMessage(error, "Failed to delete")),
   });
 
   const openCreate = () => setEdit(empty);
@@ -251,9 +264,7 @@ function AdminVouchersPage() {
                 imageUrl={v.image_url}
                 fallbackIcon={Ticket}
                 badges={[
-                  ...(v.value_text
-                    ? [{ label: v.value_text, variant: "default" as const }]
-                    : []),
+                  ...(v.value_text ? [{ label: v.value_text, variant: "default" as const }] : []),
                   ...(!v.is_active ? [{ label: "Inactive", variant: "secondary" as const }] : []),
                 ]}
                 meta={
@@ -313,6 +324,21 @@ function AdminVouchersPage() {
                       placeholder="e.g. Bella Vista Cafe"
                       value={edit.business_name ?? ""}
                       onChange={(e) => setEdit({ ...edit, business_name: e.target.value })}
+                    />
+                  </AdminField>
+                  <AdminField label="Phone">
+                    <Input
+                      type="tel"
+                      placeholder="e.g. 011 123 4567"
+                      value={edit.business_phone ?? ""}
+                      onChange={(e) => setEdit({ ...edit, business_phone: e.target.value })}
+                    />
+                  </AdminField>
+                  <AdminField label="Address">
+                    <Input
+                      placeholder="e.g. 12 Main Rd, Krugersdorp"
+                      value={edit.business_address ?? ""}
+                      onChange={(e) => setEdit({ ...edit, business_address: e.target.value })}
                     />
                   </AdminField>
                 </div>

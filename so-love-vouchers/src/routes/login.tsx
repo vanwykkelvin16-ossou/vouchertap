@@ -16,6 +16,16 @@ const schema = z.object({
   password: z.string().min(6, "At least 6 characters"),
 });
 
+async function checkIsAdmin(): Promise<boolean> {
+  const { data, error } = await supabase.rpc("is_admin");
+  if (!error) return !!data;
+  const { data: hasRole, error: roleErr } = await supabase.rpc("has_role", {
+    _user_id: (await supabase.auth.getUser()).data.user?.id ?? "",
+    _role: "admin",
+  });
+  return !roleErr && !!hasRole;
+}
+
 export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
@@ -28,7 +38,9 @@ function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   // Admin can reach /login directly without the member access code
-  const searchParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+  const searchParams = new URLSearchParams(
+    typeof window !== "undefined" ? window.location.search : "",
+  );
   const isAdminLogin = searchParams.get("admin") === "1";
 
   useEffect(() => {
@@ -36,8 +48,12 @@ function LoginPage() {
   }, [navigate, isAdminLogin]);
 
   useEffect(() => {
-    if (!loading && session) navigate({ to: "/app/events" });
-  }, [session, loading, navigate]);
+    if (loading || !session) return;
+    void (async () => {
+      const admin = isAdminLogin || (await checkIsAdmin());
+      navigate({ to: admin ? "/admin" : "/app/events" });
+    })();
+  }, [session, loading, navigate, isAdminLogin]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -70,7 +86,8 @@ function LoginPage() {
     }
     setSubmitting(false);
     toast.success("Welcome back!");
-    navigate({ to: "/app/events" });
+    const admin = isAdminLogin || (await checkIsAdmin());
+    navigate({ to: admin ? "/admin" : "/app/events" });
   }
 
   return (
@@ -80,9 +97,9 @@ function LoginPage() {
           <div className="size-14 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center mb-4">
             <Heart className="size-7 fill-current" />
           </div>
-          <h1 className="text-2xl font-bold">Welcome back</h1>
+          <h1 className="text-2xl font-bold">{isAdminLogin ? "Admin sign in" : "Welcome back"}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Sign in to view your vouchers.
+            {isAdminLogin ? "Sign in to manage the portal." : "Sign in to view your vouchers."}
           </p>
         </div>
 

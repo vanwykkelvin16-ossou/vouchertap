@@ -1,5 +1,5 @@
 -- Run once in Supabase SQL Editor:
--- https://supabase.com/dashboard/project/vddblapsfulrihibuswz/sql/new
+-- https://supabase.com/dashboard/project/zgaerghmlkikldbmsbwq/sql/new
 --
 -- Resets accounts to:
 --   admin@slkd.co.za  (admin portal only)

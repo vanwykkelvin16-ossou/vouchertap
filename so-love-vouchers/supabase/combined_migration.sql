@@ -115,6 +115,8 @@ CREATE TABLE public.vouchers (
   image_url TEXT,
   business_name TEXT,
   business_logo_url TEXT,
+  business_phone TEXT,
+  business_address TEXT,
   value_text TEXT,
   terms TEXT,
   claim_window_hours INTEGER NOT NULL DEFAULT 48,
