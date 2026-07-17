@@ -2,7 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import webpush from "web-push";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 function normalizeVapidSubject(raw: string | undefined): string {
   const fallback = "mailto:admin@solovekrugersdorp.com";
@@ -143,23 +142,17 @@ export const broadcastPush = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => broadcastSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { userId } = context;
-    // Admin gate
-    const { data: roles } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-    const isAdmin = (roles ?? []).some((r) => r.role === "admin");
-    if (!isAdmin) throw new Error("Forbidden");
-
+    const { supabase } = context;
     configureVapid();
 
-    const filterColumn = data.category === "vouchers" ? "notify_vouchers" : "notify_events";
-    const { data: subs, error } = await supabaseAdmin
-      .from("push_subscriptions")
-      .select("id, endpoint, p256dh, auth")
-      .eq(filterColumn, true);
-    if (error) throw new Error(error.message);
+    // Admin gate + subscription list live in a SECURITY DEFINER RPC, so this
+    // runs under the caller's own session (no service-role key needed).
+    const { data: subs, error } = await supabase.rpc("get_broadcast_subscriptions", {
+      _category: data.category,
+    });
+    if (error) {
+      throw new Error(error.message === "not_authorized" ? "Forbidden" : error.message);
+    }
 
     const payload = JSON.stringify({
       title: data.title,
@@ -203,7 +196,7 @@ export const broadcastPush = createServerFn({ method: "POST" })
     );
 
     if (stale.length > 0) {
-      await supabaseAdmin.from("push_subscriptions").delete().in("endpoint", stale);
+      await supabase.rpc("remove_push_endpoints", { _endpoints: stale });
     }
 
     console.log(
@@ -222,10 +215,11 @@ export const sendTestPush = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => testPushSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { userId } = context;
+    const { supabase, userId } = context;
     configureVapid();
 
-    const { data: subs, error } = await supabaseAdmin
+    // RLS limits this to the caller's own subscriptions.
+    const { data: subs, error } = await supabase
       .from("push_subscriptions")
       .select("endpoint, p256dh, auth")
       .eq("user_id", userId);
@@ -269,7 +263,7 @@ export const sendTestPush = createServerFn({ method: "POST" })
     );
 
     if (stale.length > 0) {
-      await supabaseAdmin.from("push_subscriptions").delete().in("endpoint", stale);
+      await supabase.rpc("remove_push_endpoints", { _endpoints: stale });
     }
 
     return { sent, total: subs.length, removed: stale.length, errors };

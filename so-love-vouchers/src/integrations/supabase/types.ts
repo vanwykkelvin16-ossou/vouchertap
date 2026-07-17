@@ -391,6 +391,16 @@ export type Database = {
         };
       };
       delete_member: { Args: { _user_id: string }; Returns: undefined };
+      get_broadcast_subscriptions: {
+        Args: { _category: string };
+        Returns: {
+          id: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+        }[];
+      };
+      remove_push_endpoints: { Args: { _endpoints: string[] }; Returns: number };
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"];
@@ -398,6 +408,7 @@ export type Database = {
         };
         Returns: boolean;
       };
+      is_admin: { Args: never; Returns: boolean };
       redeem_voucher_claim: {
         Args: { _claim_id: string };
         Returns: {
