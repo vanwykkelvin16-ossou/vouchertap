@@ -651,7 +651,7 @@ function ContactSection() {
       if (error) throw error;
       return data as unknown as {
         general_email: string | null;
-        contacts: { name: string; phone: string }[];
+        contacts: { name: string; phone: string; image_url?: string | null }[];
       } | null;
     },
   });
@@ -685,9 +685,21 @@ function ContactSection() {
             href={`tel:${c.phone.replace(/\s+/g, "")}`}
             className="flex items-center gap-4 px-4 py-3.5 hover:bg-muted/40 transition-colors"
           >
-            <div className="size-10 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
-              <Phone className="size-4" />
-            </div>
+            {c.image_url ? (
+              <img
+                src={c.image_url}
+                alt={c.name}
+                className="size-10 rounded-full object-cover shrink-0 border border-border"
+              />
+            ) : (
+              <div className="size-10 rounded-full bg-primary/10 text-primary grid place-items-center shrink-0 font-semibold text-sm">
+                {c.name.trim() ? (
+                  c.name.trim().charAt(0).toUpperCase()
+                ) : (
+                  <Phone className="size-4" />
+                )}
+              </div>
+            )}
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-sm leading-tight">{c.name}</p>
               <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">{c.phone}</p>

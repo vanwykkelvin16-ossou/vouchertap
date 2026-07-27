@@ -85,12 +85,23 @@ function InfoRow({ label, value, mono }: { label: string; value?: string | null;
   );
 }
 
+function roleErrorMessage(message: string) {
+  if (message.includes("cannot_demote_self")) return "You can't demote yourself.";
+  if (message.includes("cannot_demote_last_admin")) {
+    return "Promote another admin first — you can't remove the last admin.";
+  }
+  if (message.includes("not_authorized")) return "Only admins can change roles.";
+  return message || "Failed to update role";
+}
+
 function AdminMembersPage() {
   const qc = useQueryClient();
   const { user } = useAuth();
   useRealtimeInvalidate("profiles", [["admin-members"]]);
+  useRealtimeInvalidate("user_roles", [["admin-members"]]);
   const [viewing, setViewing] = useState<Row | null>(null);
   const [toDelete, setToDelete] = useState<Row | null>(null);
+  const [roleConfirm, setRoleConfirm] = useState<{ member: Row; grant: boolean } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-members"],
@@ -127,12 +138,19 @@ function AdminMembersPage() {
       });
       if (error) throw error;
     },
-    onSuccess: (_d, vars) => {
-      toast.success("Updated");
-      refresh();
+    onSuccess: async (_d, vars) => {
+      toast.success(
+        vars.grant
+          ? "Promoted to admin — they can open the admin portal on next login or refresh."
+          : "Demoted to member — admin portal access removed.",
+      );
+      setRoleConfirm(null);
+      await refresh();
+      // Clear any cached admin check for the target so their next visit is fresh.
+      await qc.invalidateQueries({ queryKey: ["is-admin", vars.userId] });
       setViewing((v) => (v && v.id === vars.userId ? { ...v, isAdmin: vars.grant } : v));
     },
-    onError: (e) => toast.error(e.message || "Failed"),
+    onError: (e) => toast.error(roleErrorMessage(e.message)),
   });
 
   const setDisabled = useMutation({
@@ -179,14 +197,14 @@ function AdminMembersPage() {
       <header className="flex items-end justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-widest text-primary font-semibold">Admin</p>
-          <h1 className="text-3xl font-bold mt-1">Customers</h1>
+          <h1 className="text-3xl font-bold mt-1">Members</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Everyone on the platform — tap a customer for their full profile.
+            Tap a member to view their profile, promote them to admin, or demote them.
           </p>
         </div>
         <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
           <Users className="size-4 text-primary" />
-          {data?.length ?? 0} customer{(data?.length ?? 0) === 1 ? "" : "s"}
+          {data?.length ?? 0} member{(data?.length ?? 0) === 1 ? "" : "s"}
         </div>
       </header>
 
@@ -197,7 +215,7 @@ function AdminMembersPage() {
       ) : !data || data.length === 0 ? (
         <Card className="p-8 text-center border-dashed">
           <Users className="size-8 mx-auto text-muted-foreground" />
-          <p className="font-semibold mt-3">No customers yet</p>
+          <p className="font-semibold mt-3">No members yet</p>
         </Card>
       ) : (
         <Card className="rounded-2xl shadow-lg shadow-black/[0.04] ring-1 ring-black/[0.02] overflow-hidden p-0 divide-y divide-border">
@@ -249,11 +267,19 @@ function AdminMembersPage() {
       )}
 
       {/* Full details popup */}
-      <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
+      <Dialog
+        open={!!viewing}
+        onOpenChange={(o) => {
+          if (!o) {
+            setViewing(null);
+            setRoleConfirm(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-lg sm:max-w-2xl max-h-[92vh] flex flex-col gap-0 p-0 overflow-hidden">
           <DialogHeader className="px-6 md:px-8 py-5 border-b border-border bg-muted/30 shrink-0 text-left">
             <p className="text-[10px] uppercase tracking-[0.2em] text-primary font-semibold">
-              Customer
+              Member
             </p>
             <div className="flex items-center gap-4 mt-1">
               <div className="size-14 rounded-full bg-primary/10 text-primary overflow-hidden grid place-items-center font-bold text-lg shrink-0">
@@ -358,6 +384,91 @@ function AdminMembersPage() {
                 )}
               </FormSection>
 
+              <FormSection title="Admin access">
+                <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+                  {isMe ? (
+                    <>
+                      <p className="text-sm text-muted-foreground">
+                        {viewing.isAdmin
+                          ? "You are an admin and can open the admin portal."
+                          : "You are a member."}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        You can't change your own admin role here.
+                      </p>
+                    </>
+                  ) : roleConfirm && roleConfirm.member.id === viewing.id ? (
+                    <>
+                      <p className="text-sm text-foreground font-medium">
+                        {roleConfirm.grant ? "Promote to admin?" : "Demote from admin?"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {roleConfirm.grant
+                          ? "They will get full access to the admin portal (events, vouchers, members, and more)."
+                          : "They will lose admin portal access and become a regular member again."}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={setRole.isPending}
+                          onClick={() => setRoleConfirm(null)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={roleConfirm.grant ? "default" : "outline"}
+                          disabled={setRole.isPending}
+                          onClick={() => {
+                            if (setRole.isPending) return;
+                            setRole.mutate({
+                              userId: roleConfirm.member.id,
+                              grant: roleConfirm.grant,
+                            });
+                          }}
+                        >
+                          {setRole.isPending ? (
+                            <Loader2 className="size-3.5 animate-spin mr-1.5" />
+                          ) : roleConfirm.grant ? (
+                            <ShieldCheck className="size-3.5 mr-1.5" />
+                          ) : (
+                            <ShieldOff className="size-3.5 mr-1.5" />
+                          )}
+                          {roleConfirm.grant ? "Confirm promote" : "Confirm demote"}
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-muted-foreground">
+                        {viewing.isAdmin
+                          ? "This person is an admin and can open the admin portal."
+                          : "Promote this member to admin so they can manage the portal."}
+                      </p>
+                      <Button
+                        size="sm"
+                        variant={viewing.isAdmin ? "outline" : "default"}
+                        onClick={() =>
+                          setRoleConfirm({ member: viewing, grant: !viewing.isAdmin })
+                        }
+                        disabled={setRole.isPending}
+                      >
+                        {viewing.isAdmin ? (
+                          <>
+                            <ShieldOff className="size-3.5 mr-1.5" /> Demote from admin
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="size-3.5 mr-1.5" /> Promote to admin
+                          </>
+                        )}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </FormSection>
+
               <FormSection title="Quick contact">
                 <div className="flex flex-wrap gap-2">
                   {viewing.email && (
@@ -390,42 +501,24 @@ function AdminMembersPage() {
               >
                 <Trash2 className="size-3.5 mr-1" /> Delete
               </Button>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setRole.mutate({ userId: viewing.id, grant: !viewing.isAdmin })}
-                  disabled={setRole.isPending}
-                >
-                  {viewing.isAdmin ? (
-                    <>
-                      <ShieldOff className="size-3.5 mr-1" /> Demote
-                    </>
-                  ) : (
-                    <>
-                      <ShieldCheck className="size-3.5 mr-1" /> Promote
-                    </>
-                  )}
-                </Button>
-                <Button
-                  size="sm"
-                  variant={viewing.disabled_at ? "outline" : "destructive"}
-                  onClick={() =>
-                    setDisabled.mutate({ userId: viewing.id, disabled: !viewing.disabled_at })
-                  }
-                  disabled={setDisabled.isPending}
-                >
-                  {viewing.disabled_at ? (
-                    <>
-                      <RotateCcw className="size-3.5 mr-1" /> Enable
-                    </>
-                  ) : (
-                    <>
-                      <Ban className="size-3.5 mr-1" /> Disable
-                    </>
-                  )}
-                </Button>
-              </div>
+              <Button
+                size="sm"
+                variant={viewing.disabled_at ? "outline" : "destructive"}
+                onClick={() =>
+                  setDisabled.mutate({ userId: viewing.id, disabled: !viewing.disabled_at })
+                }
+                disabled={setDisabled.isPending}
+              >
+                {viewing.disabled_at ? (
+                  <>
+                    <RotateCcw className="size-3.5 mr-1" /> Enable
+                  </>
+                ) : (
+                  <>
+                    <Ban className="size-3.5 mr-1" /> Disable
+                  </>
+                )}
+              </Button>
             </div>
           )}
         </DialogContent>

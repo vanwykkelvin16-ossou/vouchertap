@@ -21,6 +21,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { BrandHeart } from "@/components/brand-heart";
+import { ImageUploader } from "@/components/image-uploader";
 import { toast } from "sonner";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime";
 import { cn } from "@/lib/utils";
@@ -29,10 +30,16 @@ export const Route = createFileRoute("/admin/contact")({
   component: AdminContactPage,
 });
 
+type ContactPerson = {
+  name: string;
+  phone: string;
+  image_url?: string | null;
+};
+
 type ContactInfo = {
   id: string;
   general_email: string | null;
-  contacts: { name: string; phone: string }[];
+  contacts: ContactPerson[];
   updated_at?: string | null;
 };
 
@@ -55,21 +62,34 @@ function AdminContactPage() {
   });
 
   const [email, setEmail] = useState("");
-  const [contacts, setContacts] = useState<{ name: string; phone: string }[]>([]);
+  const [contacts, setContacts] = useState<ContactPerson[]>([]);
 
   useEffect(() => {
     if (data) {
       setEmail(data.general_email ?? "");
-      setContacts(data.contacts ?? []);
+      setContacts(
+        (data.contacts ?? []).map((c) => ({
+          name: c.name ?? "",
+          phone: c.phone ?? "",
+          image_url: c.image_url ?? null,
+        })),
+      );
     }
   }, [data]);
 
   const save = useMutation({
     mutationFn: async () => {
+      const cleaned = contacts
+        .filter((c) => c.name.trim() || c.phone.trim())
+        .map((c) => ({
+          name: c.name.trim(),
+          phone: c.phone.trim(),
+          image_url: c.image_url || null,
+        }));
       if (!data) {
         const { error } = await supabase.from("contact_info").insert({
           general_email: email || null,
-          contacts: contacts as Json,
+          contacts: cleaned as Json,
           updated_at: new Date().toISOString(),
         });
         if (error) throw error;
@@ -78,7 +98,7 @@ function AdminContactPage() {
           .from("contact_info")
           .update({
             general_email: email || null,
-            contacts: contacts as Json,
+            contacts: cleaned as Json,
             updated_at: new Date().toISOString(),
           })
           .eq("id", data.id);
@@ -88,6 +108,7 @@ function AdminContactPage() {
     onSuccess: () => {
       toast.success("Contact info updated - live for all members");
       qc.invalidateQueries({ queryKey: ["admin-contact-info"] });
+      qc.invalidateQueries({ queryKey: ["contact-info"] });
     },
     onError: (e) => toast.error(e.message || "Failed to save"),
   });
@@ -188,14 +209,16 @@ function AdminContactPage() {
                     <h2 className="text-base font-semibold leading-tight">People to contact</h2>
                     <p className="text-xs text-muted-foreground">
                       {validContacts.length} {validContacts.length === 1 ? "person" : "people"}{" "}
-                      listed
+                      listed · tap the circle to add a photo
                     </p>
                   </div>
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setContacts([...contacts, { name: "", phone: "" }])}
+                  onClick={() =>
+                    setContacts([...contacts, { name: "", phone: "", image_url: null }])
+                  }
                   className="rounded-full"
                 >
                   <Plus className="size-4 mr-1.5" /> Add person
@@ -214,7 +237,7 @@ function AdminContactPage() {
                   <Button
                     variant="default"
                     size="sm"
-                    onClick={() => setContacts([{ name: "", phone: "" }])}
+                    onClick={() => setContacts([{ name: "", phone: "", image_url: null }])}
                   >
                     <Plus className="size-4 mr-1.5" /> Add first contact
                   </Button>
@@ -224,12 +247,23 @@ function AdminContactPage() {
                   {contacts.map((c, i) => (
                     <li
                       key={i}
-                      className="group p-4 sm:p-5 grid grid-cols-[auto_1fr_auto] sm:grid-cols-[auto_1fr_1fr_auto] gap-3 sm:gap-4 items-center hover:bg-muted/30 transition-colors"
+                      className="group p-4 sm:p-5 grid grid-cols-[auto_1fr_auto] sm:grid-cols-[auto_1fr_1fr_auto] gap-3 sm:gap-4 items-start sm:items-center hover:bg-muted/30 transition-colors"
                     >
-                      <div className="size-10 rounded-full bg-primary/10 text-primary grid place-items-center font-bold text-sm shrink-0">
-                        {c.name.trim() ? c.name.trim().charAt(0).toUpperCase() : i + 1}
+                      <div className="shrink-0 pt-1 sm:pt-0">
+                        <ImageUploader
+                          value={c.image_url}
+                          onChange={(url) => {
+                            const next = [...contacts];
+                            next[i] = { ...next[i], image_url: url };
+                            setContacts(next);
+                          }}
+                          folder="contacts"
+                          shape="circle"
+                          compact
+                          label="Photo"
+                        />
                       </div>
-                      <div className="col-span-2 sm:col-span-1">
+                      <div className="col-span-2 sm:col-span-1 min-w-0">
                         <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
                           Name
                         </Label>
@@ -244,7 +278,7 @@ function AdminContactPage() {
                           className="mt-1 h-9"
                         />
                       </div>
-                      <div className="col-span-2 sm:col-span-1">
+                      <div className="col-span-2 sm:col-span-1 min-w-0">
                         <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
                           Phone
                         </Label>
@@ -319,9 +353,21 @@ function AdminContactPage() {
                       )}
                       {validContacts.map((c, i) => (
                         <div key={i} className="flex items-center gap-3 px-3.5 py-3">
-                          <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
-                            <Phone className="size-4" />
-                          </div>
+                          {c.image_url ? (
+                            <img
+                              src={c.image_url}
+                              alt={c.name || "Contact"}
+                              className="size-9 rounded-full object-cover shrink-0 border border-border"
+                            />
+                          ) : (
+                            <div className="size-9 rounded-full bg-primary/10 text-primary grid place-items-center shrink-0 font-semibold text-xs">
+                              {c.name.trim() ? (
+                                c.name.trim().charAt(0).toUpperCase()
+                              ) : (
+                                <Phone className="size-4" />
+                              )}
+                            </div>
+                          )}
                           <div className="min-w-0 flex-1">
                             <p className="font-semibold text-xs leading-tight">
                               {c.name || "(no name)"}

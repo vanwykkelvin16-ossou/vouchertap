@@ -111,7 +111,7 @@ function ShopPage() {
       if (error) throw error;
       return data as unknown as {
         general_email: string | null;
-        contacts: { name: string; phone: string }[];
+        contacts: { name: string; phone: string; image_url?: string | null }[];
       } | null;
     },
   });
@@ -254,7 +254,10 @@ function ProductDialog({
   product: Product | null;
   onClose: () => void;
   contact:
-    | { general_email: string | null; contacts: { name: string; phone: string }[] }
+    | {
+        general_email: string | null;
+        contacts: { name: string; phone: string; image_url?: string | null }[];
+      }
     | null
     | undefined;
 }) {
@@ -276,7 +279,10 @@ function ProductDetail({
 }: {
   product: Product;
   contact:
-    | { general_email: string | null; contacts: { name: string; phone: string }[] }
+    | {
+        general_email: string | null;
+        contacts: { name: string; phone: string; image_url?: string | null }[];
+      }
     | null
     | undefined;
 }) {

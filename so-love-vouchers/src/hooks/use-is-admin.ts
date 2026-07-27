@@ -27,7 +27,10 @@ export function useIsAdmin() {
       return checkAdmin(user.id);
     },
     enabled: !!user,
-    staleTime: 5 * 60_000,
+    // Short stale window so a freshly promoted member can open /admin
+    // after a refresh / focus without waiting several minutes.
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
     retry: 1,
   });
 }

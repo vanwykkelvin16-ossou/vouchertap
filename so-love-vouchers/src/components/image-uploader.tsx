@@ -12,6 +12,7 @@ export function ImageUploader({
   shape = "rect",
   label,
   fit = "cover",
+  compact = false,
 }: {
   value: string | null | undefined;
   onChange: (url: string | null) => void;
@@ -20,6 +21,8 @@ export function ImageUploader({
   label?: string;
   /** "contain" shows the whole image (no cropping) in a shorter block. */
   fit?: "cover" | "contain";
+  /** Smaller circle avatar with click-to-upload — used for contact people lists. */
+  compact?: boolean;
 }) {
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -71,6 +74,53 @@ export function ImageUploader({
     onChange(data.publicUrl);
     toast.success("Image uploaded");
     if (inputRef.current) inputRef.current.value = "";
+  }
+
+  if (shape === "circle" && compact) {
+    return (
+      <div className="relative shrink-0">
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          aria-label={value ? "Change photo" : (label ?? "Upload photo")}
+          className={cn(
+            "size-14 rounded-full overflow-hidden bg-muted border border-border grid place-items-center transition-colors hover:border-primary/50",
+            !value && "border-dashed",
+          )}
+        >
+          {uploading ? (
+            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+          ) : value ? (
+            <img
+              src={previewSrc ?? value}
+              alt=""
+              onError={onPreviewError}
+              className="size-full object-cover"
+            />
+          ) : (
+            <Upload className="size-4 text-muted-foreground/70" />
+          )}
+        </button>
+        {value && !uploading && (
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="absolute -top-1 -right-1 size-5 rounded-full bg-background border border-border shadow-sm grid place-items-center hover:bg-muted"
+            aria-label="Remove image"
+          >
+            <X className="size-3" />
+          </button>
+        )}
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFile}
+        />
+      </div>
+    );
   }
 
   if (shape === "circle") {
