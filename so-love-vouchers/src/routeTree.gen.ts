@@ -9,52 +9,32 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SignupRouteImport } from './routes/signup'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as AppRouteImport } from './routes/app'
-import { Route as AdminRouteImport } from './routes/admin'
-import { Route as AccessCodeRouteImport } from './routes/access-code'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccessCodeRouteImport } from './routes/access-code'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AppRouteImport } from './routes/app'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
-import { Route as AppVouchersRouteImport } from './routes/app.vouchers'
-import { Route as AppShopRouteImport } from './routes/app.shop'
-import { Route as AppProfileRouteImport } from './routes/app.profile'
-import { Route as AppMyVouchersRouteImport } from './routes/app.my-vouchers'
-import { Route as AppEventsRouteImport } from './routes/app.events'
-import { Route as AppBreakfastRouteImport } from './routes/app.breakfast'
-import { Route as AdminVouchersRouteImport } from './routes/admin.vouchers'
-import { Route as AdminShopRouteImport } from './routes/admin.shop'
-import { Route as AdminRedemptionsRouteImport } from './routes/admin.redemptions'
-import { Route as AdminMembersRouteImport } from './routes/admin.members'
-import { Route as AdminEventsRouteImport } from './routes/admin.events'
-import { Route as AdminContactRouteImport } from './routes/admin.contact'
 import { Route as AdminBreakfastRouteImport } from './routes/admin.breakfast'
+import { Route as AdminContactRouteImport } from './routes/admin.contact'
+import { Route as AdminEventsRouteImport } from './routes/admin.events'
+import { Route as AdminMembersRouteImport } from './routes/admin.members'
+import { Route as AdminRedemptionsRouteImport } from './routes/admin.redemptions'
+import { Route as AdminShopRouteImport } from './routes/admin.shop'
+import { Route as AdminVouchersRouteImport } from './routes/admin.vouchers'
+import { Route as AppBreakfastRouteImport } from './routes/app.breakfast'
+import { Route as AppEventsRouteImport } from './routes/app.events'
+import { Route as AppMyVouchersRouteImport } from './routes/app.my-vouchers'
+import { Route as AppProfileRouteImport } from './routes/app.profile'
+import { Route as AppShopRouteImport } from './routes/app.shop'
+import { Route as AppVouchersRouteImport } from './routes/app.vouchers'
 import { Route as AppVoucherIdRouteImport } from './routes/app.voucher.$id'
 
-const SignupRoute = SignupRouteImport.update({
-  id: '/signup',
-  path: '/signup',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppRoute = AppRouteImport.update({
-  id: '/app',
-  path: '/app',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccessCodeRoute = AccessCodeRouteImport.update({
@@ -62,9 +42,29 @@ const AccessCodeRoute = AccessCodeRouteImport.update({
   path: '/access-code',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppRoute = AppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -72,59 +72,9 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
-const AppVouchersRoute = AppVouchersRouteImport.update({
-  id: '/vouchers',
-  path: '/vouchers',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppShopRoute = AppShopRouteImport.update({
-  id: '/shop',
-  path: '/shop',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppProfileRoute = AppProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMyVouchersRoute = AppMyVouchersRouteImport.update({
-  id: '/my-vouchers',
-  path: '/my-vouchers',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppEventsRoute = AppEventsRouteImport.update({
-  id: '/events',
-  path: '/events',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppBreakfastRoute = AppBreakfastRouteImport.update({
+const AdminBreakfastRoute = AdminBreakfastRouteImport.update({
   id: '/breakfast',
   path: '/breakfast',
-  getParentRoute: () => AppRoute,
-} as any)
-const AdminVouchersRoute = AdminVouchersRouteImport.update({
-  id: '/vouchers',
-  path: '/vouchers',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminShopRoute = AdminShopRouteImport.update({
-  id: '/shop',
-  path: '/shop',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminRedemptionsRoute = AdminRedemptionsRouteImport.update({
-  id: '/redemptions',
-  path: '/redemptions',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminMembersRoute = AdminMembersRouteImport.update({
-  id: '/members',
-  path: '/members',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminEventsRoute = AdminEventsRouteImport.update({
-  id: '/events',
-  path: '/events',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminContactRoute = AdminContactRouteImport.update({
@@ -132,10 +82,60 @@ const AdminContactRoute = AdminContactRouteImport.update({
   path: '/contact',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminBreakfastRoute = AdminBreakfastRouteImport.update({
+const AdminEventsRoute = AdminEventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminMembersRoute = AdminMembersRouteImport.update({
+  id: '/members',
+  path: '/members',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminRedemptionsRoute = AdminRedemptionsRouteImport.update({
+  id: '/redemptions',
+  path: '/redemptions',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminShopRoute = AdminShopRouteImport.update({
+  id: '/shop',
+  path: '/shop',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminVouchersRoute = AdminVouchersRouteImport.update({
+  id: '/vouchers',
+  path: '/vouchers',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AppBreakfastRoute = AppBreakfastRouteImport.update({
   id: '/breakfast',
   path: '/breakfast',
-  getParentRoute: () => AdminRoute,
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEventsRoute = AppEventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMyVouchersRoute = AppMyVouchersRouteImport.update({
+  id: '/my-vouchers',
+  path: '/my-vouchers',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppShopRoute = AppShopRouteImport.update({
+  id: '/shop',
+  path: '/shop',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppVouchersRoute = AppVouchersRouteImport.update({
+  id: '/vouchers',
+  path: '/vouchers',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppVoucherIdRoute = AppVoucherIdRouteImport.update({
   id: '/voucher/$id',
@@ -301,39 +301,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/signup': {
-      id: '/signup'
-      path: '/signup'
-      fullPath: '/signup'
-      preLoaderRoute: typeof SignupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app': {
-      id: '/app'
-      path: '/app'
-      fullPath: '/app'
-      preLoaderRoute: typeof AppRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/access-code': {
@@ -343,11 +315,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccessCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -357,81 +357,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/app/vouchers': {
-      id: '/app/vouchers'
-      path: '/vouchers'
-      fullPath: '/app/vouchers'
-      preLoaderRoute: typeof AppVouchersRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/shop': {
-      id: '/app/shop'
-      path: '/shop'
-      fullPath: '/app/shop'
-      preLoaderRoute: typeof AppShopRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/profile': {
-      id: '/app/profile'
-      path: '/profile'
-      fullPath: '/app/profile'
-      preLoaderRoute: typeof AppProfileRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/my-vouchers': {
-      id: '/app/my-vouchers'
-      path: '/my-vouchers'
-      fullPath: '/app/my-vouchers'
-      preLoaderRoute: typeof AppMyVouchersRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/events': {
-      id: '/app/events'
-      path: '/events'
-      fullPath: '/app/events'
-      preLoaderRoute: typeof AppEventsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/breakfast': {
-      id: '/app/breakfast'
+    '/admin/breakfast': {
+      id: '/admin/breakfast'
       path: '/breakfast'
-      fullPath: '/app/breakfast'
-      preLoaderRoute: typeof AppBreakfastRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/admin/vouchers': {
-      id: '/admin/vouchers'
-      path: '/vouchers'
-      fullPath: '/admin/vouchers'
-      preLoaderRoute: typeof AdminVouchersRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/shop': {
-      id: '/admin/shop'
-      path: '/shop'
-      fullPath: '/admin/shop'
-      preLoaderRoute: typeof AdminShopRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/redemptions': {
-      id: '/admin/redemptions'
-      path: '/redemptions'
-      fullPath: '/admin/redemptions'
-      preLoaderRoute: typeof AdminRedemptionsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/members': {
-      id: '/admin/members'
-      path: '/members'
-      fullPath: '/admin/members'
-      preLoaderRoute: typeof AdminMembersRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/events': {
-      id: '/admin/events'
-      path: '/events'
-      fullPath: '/admin/events'
-      preLoaderRoute: typeof AdminEventsRouteImport
+      fullPath: '/admin/breakfast'
+      preLoaderRoute: typeof AdminBreakfastRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/contact': {
@@ -441,12 +371,82 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminContactRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/breakfast': {
-      id: '/admin/breakfast'
-      path: '/breakfast'
-      fullPath: '/admin/breakfast'
-      preLoaderRoute: typeof AdminBreakfastRouteImport
+    '/admin/events': {
+      id: '/admin/events'
+      path: '/events'
+      fullPath: '/admin/events'
+      preLoaderRoute: typeof AdminEventsRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/admin/members': {
+      id: '/admin/members'
+      path: '/members'
+      fullPath: '/admin/members'
+      preLoaderRoute: typeof AdminMembersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/redemptions': {
+      id: '/admin/redemptions'
+      path: '/redemptions'
+      fullPath: '/admin/redemptions'
+      preLoaderRoute: typeof AdminRedemptionsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/shop': {
+      id: '/admin/shop'
+      path: '/shop'
+      fullPath: '/admin/shop'
+      preLoaderRoute: typeof AdminShopRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/vouchers': {
+      id: '/admin/vouchers'
+      path: '/vouchers'
+      fullPath: '/admin/vouchers'
+      preLoaderRoute: typeof AdminVouchersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/app/breakfast': {
+      id: '/app/breakfast'
+      path: '/breakfast'
+      fullPath: '/app/breakfast'
+      preLoaderRoute: typeof AppBreakfastRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/events': {
+      id: '/app/events'
+      path: '/events'
+      fullPath: '/app/events'
+      preLoaderRoute: typeof AppEventsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/my-vouchers': {
+      id: '/app/my-vouchers'
+      path: '/my-vouchers'
+      fullPath: '/app/my-vouchers'
+      preLoaderRoute: typeof AppMyVouchersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/profile': {
+      id: '/app/profile'
+      path: '/profile'
+      fullPath: '/app/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/shop': {
+      id: '/app/shop'
+      path: '/shop'
+      fullPath: '/app/shop'
+      preLoaderRoute: typeof AppShopRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/vouchers': {
+      id: '/app/vouchers'
+      path: '/vouchers'
+      fullPath: '/app/vouchers'
+      preLoaderRoute: typeof AppVouchersRouteImport
+      parentRoute: typeof AppRoute
     }
     '/app/voucher/$id': {
       id: '/app/voucher/$id'

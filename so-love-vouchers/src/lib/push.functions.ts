@@ -60,7 +60,7 @@ const subscribeSchema = z.object({
 
 export const saveSubscription = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => subscribeSchema.parse(input))
+  .validator((input) => subscribeSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { error } = await supabase.from("push_subscriptions").upsert(
@@ -82,7 +82,7 @@ export const saveSubscription = createServerFn({ method: "POST" })
 
 export const updatePreferences = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .validator((input) =>
     z
       .object({
         notify_vouchers: z.boolean().optional(),
@@ -106,7 +106,7 @@ export const updatePreferences = createServerFn({ method: "POST" })
 
 export const removeSubscription = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ endpoint: z.string().url().max(2048) }).parse(input))
+  .validator((input) => z.object({ endpoint: z.string().url().max(2048) }).parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { error } = await supabase
@@ -140,7 +140,7 @@ const broadcastSchema = z.object({
 
 export const broadcastPush = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => broadcastSchema.parse(input))
+  .validator((input) => broadcastSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     configureVapid();
@@ -213,7 +213,7 @@ const testPushSchema = z.object({
 
 export const sendTestPush = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => testPushSchema.parse(input))
+  .validator((input) => testPushSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     configureVapid();
