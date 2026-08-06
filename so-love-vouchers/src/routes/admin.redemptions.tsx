@@ -59,8 +59,28 @@ const MONTHS = [
 
 function AdminRedemptionsPage() {
   useRealtimeInvalidate("voucher_claims", [["admin-claims"]]);
+  useRealtimeInvalidate("vouchers", [["admin-voucher-options"]]);
   const [activeMonth, setActiveMonth] = useState<string>("all");
   const [activeYear, setActiveYear] = useState<string>("all");
+  const [activeVoucher, setActiveVoucher] = useState<string>("all");
+
+  /** Every voucher, alphabetically — including ones nobody has claimed yet, so
+   *  a voucher added a minute ago is already selectable here. */
+  const { data: vouchers } = useQuery({
+    queryKey: ["admin-voucher-options"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vouchers")
+        .select("id, title")
+        .order("title", { ascending: true });
+      if (error) throw error;
+      return (data ?? [])
+        .slice()
+        .sort((a, b) =>
+          a.title.localeCompare(b.title, undefined, { sensitivity: "base", numeric: true }),
+        );
+    },
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-claims"],
@@ -99,9 +119,23 @@ function AdminRedemptionsPage() {
       const monthOk =
         activeMonth === "all" || String(d.getMonth() + 1).padStart(2, "0") === activeMonth;
       const yearOk = activeYear === "all" || String(d.getFullYear()) === activeYear;
-      return monthOk && yearOk;
+      const voucherOk = activeVoucher === "all" || c.voucher_id === activeVoucher;
+      return monthOk && yearOk && voucherOk;
     });
-  }, [data, activeMonth, activeYear]);
+  }, [data, activeMonth, activeYear, activeVoucher]);
+
+  const summary = useMemo(() => {
+    const redeemed = filtered.filter((c) => c.redeemed_at).length;
+    const expired = filtered.filter(
+      (c) => !c.redeemed_at && new Date(c.expires_at) < new Date(),
+    ).length;
+    return {
+      total: filtered.length,
+      redeemed,
+      expired,
+      active: filtered.length - redeemed - expired,
+    };
+  }, [filtered]);
 
   return (
     <div className="space-y-6">
@@ -121,7 +155,21 @@ function AdminRedemptionsPage() {
         </button>
       </header>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <Select value={activeVoucher} onValueChange={setActiveVoucher}>
+          <SelectTrigger className="w-[240px]" aria-label="Filter by voucher">
+            <SelectValue placeholder="Voucher" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All vouchers</SelectItem>
+            {(vouchers ?? []).map((v) => (
+              <SelectItem key={v.id} value={v.id}>
+                {v.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <Select value={activeMonth} onValueChange={setActiveMonth}>
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Month" />
@@ -149,6 +197,26 @@ function AdminRedemptionsPage() {
           </SelectContent>
         </Select>
       </div>
+
+      {!isLoading && filtered.length > 0 && (
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+          {[
+            { label: "Claims", value: summary.total },
+            { label: "Redeemed", value: summary.redeemed, tone: "text-emerald-600" },
+            { label: "Active", value: summary.active },
+            { label: "Expired", value: summary.expired, tone: "text-muted-foreground" },
+          ].map((s) => (
+            <Card key={s.label} className="rounded-2xl px-4 py-3">
+              <p className={`text-2xl font-bold leading-none tabular-nums ${s.tone ?? ""}`}>
+                {s.value}
+              </p>
+              <p className="mt-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                {s.label}
+              </p>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="py-10 grid place-items-center">

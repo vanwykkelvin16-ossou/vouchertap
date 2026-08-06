@@ -2,12 +2,21 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { BadgeCheck, Loader2, Clock, CheckCircle2, XCircle, CalendarDays } from "lucide-react";
-import { useCountdown, formatCountdown } from "@/hooks/use-countdown";
+import { SmartImage } from "@/components/smart-image";
+import {
+  Perforation,
+  StatusPill,
+  TicketBlock,
+  TicketSkeleton,
+  WindowBar,
+  serialOf,
+  type ClaimStatus,
+} from "@/components/voucher-kit";
+import { BadgeCheck, ArrowRight, CalendarDays, Ticket } from "lucide-react";
+import { useCountdown } from "@/hooks/use-countdown";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/app/my-vouchers")({
   component: MyVouchersPage,
@@ -28,7 +37,19 @@ type ClaimRow = {
   } | null;
 };
 
-type FilterTab = "all" | "used" | "pending" | "expired";
+type FilterTab = "all" | "pending" | "used" | "expired";
+
+const TABS: { key: FilterTab; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "pending", label: "Active" },
+  { key: "used", label: "Used" },
+  { key: "expired", label: "Expired" },
+];
+
+function statusOf(c: ClaimRow): ClaimStatus {
+  if (c.redeemed_at) return "redeemed";
+  return new Date(c.expires_at) < new Date() ? "expired" : "active";
+}
 
 function MyVouchersPage() {
   const { user } = useAuth();
@@ -50,84 +71,94 @@ function MyVouchersPage() {
     enabled: !!user?.id,
   });
 
+  const counts = {
+    all: data?.length ?? 0,
+    pending: data?.filter((c) => statusOf(c) === "active").length ?? 0,
+    used: data?.filter((c) => statusOf(c) === "redeemed").length ?? 0,
+    expired: data?.filter((c) => statusOf(c) === "expired").length ?? 0,
+  };
+
   const filtered =
     data?.filter((c) => {
-      const redeemed = !!c.redeemed_at;
-      const expired = new Date(c.expires_at) < new Date() && !redeemed;
-      if (filter === "used") return redeemed;
-      if (filter === "expired") return expired;
-      if (filter === "pending") return !redeemed && !expired;
+      const status = statusOf(c);
+      if (filter === "used") return status === "redeemed";
+      if (filter === "expired") return status === "expired";
+      if (filter === "pending") return status === "active";
       return true;
     }) ?? [];
 
   return (
-    <div className="space-y-8">
-      <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 border-b border-border pb-6">
+    <div className="space-y-6">
+      <header className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-widest text-primary font-semibold">Yours</p>
-          <h1 className="text-3xl md:text-5xl font-bold mt-2 tracking-tight">My vouchers</h1>
-          <p className="text-sm md:text-base text-muted-foreground mt-2 max-w-xl">
-            Tap a voucher to redeem in front of staff.
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
+            <BadgeCheck className="size-3" />
+            Yours
+          </span>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight md:text-[2.75rem] md:leading-[1.05]">
+            My vouchers
+          </h1>
+          <p className="mt-2 max-w-md text-sm text-muted-foreground md:text-base">
+            Open a voucher at the counter and tap redeem in front of staff.
           </p>
         </div>
-        <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
-          <BadgeCheck className="size-4 text-primary" />
-          {data?.length ?? 0} claimed
+        <div className="flex items-center gap-2 self-start rounded-full border border-border bg-card px-3.5 py-2 text-xs font-semibold md:self-auto">
+          <Ticket className="size-4 text-primary" />
+          {counts.pending} ready to use
         </div>
       </header>
 
-      {/* Filter tabs */}
-      <div className="flex items-center gap-2">
-        {(["all", "pending", "used", "expired"] as FilterTab[]).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setFilter(tab)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-              filter === tab
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
-          >
-            {tab === "all"
-              ? "All"
-              : tab === "used"
-                ? "Used"
-                : tab === "expired"
-                  ? "Expired"
-                  : "Pending"}
-          </button>
-        ))}
+      {/* Filters */}
+      <div className="-mx-1 overflow-x-auto px-1 pb-1">
+        <div className="slk-segment">
+          {TABS.map((tab) => {
+            const active = filter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setFilter(tab.key)}
+                aria-pressed={active}
+                className={cn(
+                  "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
+                  active
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {tab.label}
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 text-[11px] font-semibold tabular-nums",
+                    active ? "bg-primary/10 text-primary" : "text-muted-foreground/70",
+                  )}
+                >
+                  {counts[tab.key]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {isLoading ? (
-        <div className="py-10 grid place-items-center">
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
-        </div>
+        <ul className="grid gap-4 md:grid-cols-2">
+          {[0, 1, 2, 3].map((i) => (
+            <li key={i}>
+              <TicketSkeleton variant="row" />
+            </li>
+          ))}
+        </ul>
       ) : filtered.length === 0 ? (
-        <Card className="p-8 text-center border-dashed">
-          <BadgeCheck className="size-8 mx-auto text-muted-foreground" />
-          <p className="font-semibold mt-3">
-            {filter === "used"
-              ? "No used vouchers yet"
-              : filter === "pending"
-                ? "No pending vouchers"
-                : filter === "expired"
-                  ? "No expired vouchers"
-                  : "No claimed vouchers yet"}
-          </p>
-          <p className="text-sm text-muted-foreground mt-1">
-            {filter === "used"
-              ? "Redeemed vouchers will appear here."
-              : filter === "expired"
-                ? "Vouchers you didn't redeem in time will appear here."
-                : "Browse the vouchers tab to claim one."}
-          </p>
-        </Card>
+        <EmptyState filter={filter} />
       ) : (
-        <ul className="grid gap-3 md:grid-cols-2">
-          {filtered.map((c) => (
-            <li key={c.id}>
-              <ClaimCard claim={c} />
+        <ul className="grid gap-4 md:grid-cols-2">
+          {filtered.map((c, i) => (
+            <li
+              key={c.id}
+              className="animate-rise"
+              style={{ animationDelay: `${Math.min(i, 8) * 45}ms` }}
+            >
+              <ClaimTicket claim={c} />
             </li>
           ))}
         </ul>
@@ -136,111 +167,125 @@ function MyVouchersPage() {
   );
 }
 
-function ClaimCard({ claim }: { claim: ClaimRow }) {
+function EmptyState({ filter }: { filter: FilterTab }) {
+  const copy = {
+    all: {
+      title: "No claimed vouchers yet",
+      body: "Head to the Vouchers tab and claim your first one.",
+    },
+    pending: {
+      title: "Nothing active right now",
+      body: "Claim a voucher and it'll show up here with a live countdown.",
+    },
+    used: { title: "No used vouchers yet", body: "Redeemed vouchers stay here as your receipts." },
+    expired: {
+      title: "Nothing expired",
+      body: "Vouchers you don't redeem in time will land here.",
+    },
+  }[filter];
+
+  return (
+    <TicketBlock notchY="50%" className="mx-auto max-w-md">
+      <div className="px-8 pb-6 pt-10 text-center">
+        <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-primary/10 text-primary">
+          <BadgeCheck className="size-7" />
+        </div>
+        <p className="mt-4 text-lg font-bold">{copy.title}</p>
+      </div>
+      <Perforation />
+      <p className="px-8 pb-10 pt-6 text-center text-sm text-muted-foreground">{copy.body}</p>
+    </TicketBlock>
+  );
+}
+
+function ClaimTicket({ claim }: { claim: ClaimRow }) {
+  // Live tick so a voucher flips from active to expired without a reload.
   const cd = useCountdown(claim.expires_at);
   const redeemed = !!claim.redeemed_at;
-  const expired = cd.expired && !redeemed;
-  const status = redeemed ? "redeemed" : expired ? "expired" : "active";
+  const status: ClaimStatus = redeemed ? "redeemed" : cd.expired ? "expired" : "active";
+  const dim = status === "expired";
 
-  const usedDate = claim.redeemed_at
-    ? new Date(claim.redeemed_at).toLocaleDateString("en-ZA", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      })
-    : null;
+  const body = (
+    // Footer is a fixed 40px strip; the notches meet the perforation there.
+    <TicketBlock
+      notchY="calc(100% - 40px)"
+      innerClassName={cn(dim && "opacity-65", status === "active" && "group-hover:bg-card")}
+    >
+      <div className="flex flex-1 gap-3.5 p-4">
+        <SmartImage
+          src={claim.vouchers?.image_url}
+          alt=""
+          wrapperClassName={cn("size-16 shrink-0 rounded-2xl", dim && "grayscale")}
+        />
+
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="line-clamp-2 text-sm font-bold leading-snug tracking-tight">
+                {claim.vouchers?.title ?? "Voucher"}
+              </h3>
+              {claim.vouchers?.value_text && (
+                <p className="mt-0.5 truncate text-xs font-semibold text-primary">
+                  {claim.vouchers.value_text}
+                </p>
+              )}
+            </div>
+            <StatusPill status={status} expiresAt={claim.expires_at} className="shrink-0" />
+          </div>
+
+          {status === "active" && (
+            <WindowBar
+              claimedAt={claim.claimed_at}
+              expiresAt={claim.expires_at}
+              className="mt-auto"
+            />
+          )}
+        </div>
+      </div>
+
+      <Perforation />
+
+      <div className="flex h-10 items-center justify-between gap-2 px-4">
+        <span className="truncate text-[11px] text-muted-foreground">
+          {status === "redeemed" && claim.redeemed_at ? (
+            <span className="inline-flex items-center gap-1.5">
+              <CalendarDays className="size-3" />
+              Used {formatDay(claim.redeemed_at)}
+            </span>
+          ) : status === "expired" ? (
+            <>Expired {formatDay(claim.expires_at)}</>
+          ) : (
+            <>Claimed {formatDay(claim.claimed_at)}</>
+          )}
+        </span>
+
+        {status === "active" ? (
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
+            Open
+            <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+          </span>
+        ) : (
+          <span className="font-serial text-[10px] text-muted-foreground/60">
+            Nº {serialOf(claim.id)}
+          </span>
+        )}
+      </div>
+    </TicketBlock>
+  );
+
+  if (status !== "active") return body;
 
   return (
     <Link
       to="/app/voucher/$id"
       params={{ id: claim.id }}
-      disabled={redeemed || expired}
-      className={status === "active" ? "" : "pointer-events-none"}
+      className="block transition-transform duration-300 ease-out hover:-translate-y-0.5"
     >
-      <Card
-        className={`overflow-hidden rounded-2xl border-border/60 shadow-lg shadow-black/[0.04] ring-1 ring-black/[0.02] transition-all duration-300 ease-out ${
-          status === "active"
-            ? "hover:shadow-xl hover:shadow-black/[0.08] hover:-translate-y-0.5 hover:border-primary/40"
-            : status === "expired"
-              ? "opacity-60"
-              : ""
-        }`}
-      >
-        <div className="flex flex-col sm:flex-row">
-          {/* thumbnail */}
-          <div className="w-full h-40 sm:w-24 sm:h-24 shrink-0 bg-muted overflow-hidden">
-            {claim.vouchers?.image_url ? (
-              <img
-                src={claim.vouchers.image_url}
-                alt={claim.vouchers?.title ?? ""}
-                className="w-full h-full object-cover"
-                loading="lazy"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <BadgeCheck className="size-8 sm:size-6 text-muted-foreground/40" />
-              </div>
-            )}
-          </div>
-
-          {/* content */}
-          <div className="flex-1 min-w-0 p-4 sm:p-3.5 flex flex-col justify-between gap-2">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <h3 className="font-semibold text-sm leading-snug truncate">
-                  {claim.vouchers?.title ?? "Voucher"}
-                </h3>
-                {claim.vouchers?.value_text && (
-                  <p className="text-xs text-primary font-medium mt-0.5">
-                    {claim.vouchers.value_text}
-                  </p>
-                )}
-              </div>
-              {status === "redeemed" ? (
-                <Badge className="bg-green-600 text-white hover:bg-green-600 shrink-0 text-[10px] px-1.5 py-0">
-                  <CheckCircle2 className="size-3 mr-1" /> Used
-                </Badge>
-              ) : status === "expired" ? (
-                <Badge variant="secondary" className="shrink-0 text-[10px] px-1.5 py-0">
-                  <XCircle className="size-3 mr-1" /> Expired
-                </Badge>
-              ) : (
-                <Badge className="bg-primary text-primary-foreground hover:bg-primary shrink-0 text-[10px] px-1.5 py-0 font-serial">
-                  <Clock className="size-3 mr-1" /> {formatCountdown(cd)}
-                </Badge>
-              )}
-            </div>
-
-            <div className="mt-1 flex items-center justify-between gap-2">
-              <span className="font-serial text-[9px] text-muted-foreground/60 order-last shrink-0">
-                Nº SLK-{claim.id.slice(0, 4).toUpperCase()}
-              </span>
-              {status === "redeemed" && usedDate ? (
-                <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <CalendarDays className="size-3" />
-                  <span>Used on {usedDate}</span>
-                </div>
-              ) : status === "expired" ? (
-                <p className="text-[11px] text-muted-foreground">
-                  Expired{" "}
-                  {new Date(claim.expires_at).toLocaleDateString("en-ZA", {
-                    day: "numeric",
-                    month: "short",
-                  })}
-                </p>
-              ) : (
-                <p className="text-[11px] text-muted-foreground">
-                  Claimed{" "}
-                  {new Date(claim.claimed_at).toLocaleDateString("en-ZA", {
-                    day: "numeric",
-                    month: "short",
-                  })}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      </Card>
+      {body}
     </Link>
   );
+}
+
+function formatDay(iso: string) {
+  return new Date(iso).toLocaleDateString("en-ZA", { day: "numeric", month: "short" });
 }

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -9,13 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
+  AdminModal,
   ModalBody,
   FormSection,
   Field,
@@ -23,20 +24,26 @@ import {
   DateTimeField,
   ToggleRow,
   ModalFooter,
+  ConfirmDialog,
+  InfoNote,
+  Panel,
 } from "@/components/admin/form-kit";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { ImageUploader } from "@/components/image-uploader";
+import { VoucherRedemptionsModal, type VoucherRef } from "@/components/admin/voucher-redemptions";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime";
-import { Plus, Pencil, Trash2, Loader2, Ticket, Repeat } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Loader2,
+  Ticket,
+  Repeat,
+  Bell,
+  Search,
+  ArrowDownAZ,
+  Receipt,
+  CheckCircle2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { broadcastPush } from "@/lib/push.functions";
@@ -61,7 +68,29 @@ type VoucherRow = {
   available_until: string | null;
   is_active: boolean;
   is_recurring: boolean;
+  created_at: string;
 };
+
+/** How the voucher list is ordered. Alphabetical is the default so an admin
+ *  can find an offer by name the way they'd find it in a phone book. */
+const SORTS = {
+  name_asc: { label: "Name (A–Z)", compare: (a: VoucherRow, b: VoucherRow) => cmpName(a, b) },
+  name_desc: { label: "Name (Z–A)", compare: (a: VoucherRow, b: VoucherRow) => cmpName(b, a) },
+  newest: {
+    label: "Newest added",
+    compare: (a: VoucherRow, b: VoucherRow) => b.created_at.localeCompare(a.created_at),
+  },
+  oldest: {
+    label: "Oldest added",
+    compare: (a: VoucherRow, b: VoucherRow) => a.created_at.localeCompare(b.created_at),
+  },
+} as const;
+
+type SortKey = keyof typeof SORTS;
+
+function cmpName(a: VoucherRow, b: VoucherRow) {
+  return a.title.localeCompare(b.title, undefined, { sensitivity: "base", numeric: true });
+}
 
 type EditState = Partial<VoucherRow> & {
   __open: boolean;
@@ -110,8 +139,12 @@ function combineDatetime(date: string, time: string): string {
 function AdminVouchersPage() {
   const qc = useQueryClient();
   useRealtimeInvalidate("vouchers", [["admin-vouchers"]]);
+  useRealtimeInvalidate("voucher_claims", [["admin-voucher-claim-counts"]]);
   const [edit, setEdit] = useState<EditState | null>(null);
   const [deleting, setDeleting] = useState<VoucherRow | null>(null);
+  const [viewing, setViewing] = useState<VoucherRef | null>(null);
+  const [sort, setSort] = useState<SortKey>("name_asc");
+  const [q, setQ] = useState("");
   const sendPush = useServerFn(broadcastPush);
 
   const { data, isLoading } = useQuery({
@@ -120,11 +153,49 @@ function AdminVouchersPage() {
       const { data, error } = await supabase
         .from("vouchers")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("title", { ascending: true });
       if (error) throw error;
       return data as VoucherRow[];
     },
   });
+
+  /** Claim + redemption tallies per voucher, so every row in the list carries
+   *  its own performance at a glance. */
+  const { data: counts } = useQuery({
+    queryKey: ["admin-voucher-claim-counts"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("voucher_claims")
+        .select("voucher_id, redeemed_at")
+        .limit(20000);
+      if (error) throw error;
+      const map = new Map<string, { claimed: number; redeemed: number }>();
+      for (const row of data ?? []) {
+        const entry = map.get(row.voucher_id) ?? { claimed: 0, redeemed: 0 };
+        entry.claimed += 1;
+        if (row.redeemed_at) entry.redeemed += 1;
+        map.set(row.voucher_id, entry);
+      }
+      return map;
+    },
+    staleTime: 30_000,
+  });
+
+  /** New vouchers land in this list automatically — the sort and the search
+   *  are applied to whatever the query currently holds. */
+  const visible = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    return (data ?? [])
+      .filter(
+        (v) =>
+          !term ||
+          v.title.toLowerCase().includes(term) ||
+          (v.business_name ?? "").toLowerCase().includes(term) ||
+          (v.value_text ?? "").toLowerCase().includes(term),
+      )
+      .slice()
+      .sort(SORTS[sort].compare);
+  }, [data, q, sort]);
 
   const save = useMutation({
     mutationFn: async (e: EditState) => {
@@ -196,6 +267,7 @@ function AdminVouchersPage() {
     onSuccess: () => {
       toast.success("Deleted");
       qc.invalidateQueries({ queryKey: ["admin-vouchers"] });
+      qc.invalidateQueries({ queryKey: ["admin-voucher-claim-counts"] });
       setDeleting(null);
     },
     onError: (e) => toast.error(e.message || "Failed to delete"),
@@ -208,32 +280,72 @@ function AdminVouchersPage() {
           <p className="text-xs uppercase tracking-widest text-primary font-semibold">Admin</p>
           <h1 className="text-3xl font-bold mt-1">Vouchers</h1>
         </div>
-        <Button onClick={() => setEdit(empty)}>
+        <Button onClick={() => setEdit(empty)} className="rounded-full px-5 shadow-sm">
           <Plus className="size-4 mr-1.5" /> New voucher
         </Button>
       </header>
+
+      {data && data.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="relative min-w-52 flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search vouchers by name or business"
+              className="h-10 rounded-full pl-9"
+            />
+          </div>
+          <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+            <SelectTrigger className="h-10 w-[178px] rounded-full" aria-label="Sort vouchers">
+              <ArrowDownAZ className="size-4 shrink-0 text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(SORTS) as SortKey[]).map((k) => (
+                <SelectItem key={k} value={k}>
+                  {SORTS[k].label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground tabular-nums">
+            {visible.length} of {data.length}
+          </p>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="py-10 grid place-items-center">
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
       ) : !data || data.length === 0 ? (
-        <Card className="p-8 text-center border-dashed">
+        <Card className="p-10 text-center border-dashed bg-muted/25 rounded-2xl">
+          <div className="size-12 mx-auto rounded-2xl bg-primary/10 text-primary grid place-items-center mb-3">
+            <Ticket className="size-6" />
+          </div>
           <p className="font-semibold">No vouchers yet</p>
           <p className="text-sm text-muted-foreground mt-1">
             Create your first voucher to make it available to members.
           </p>
         </Card>
+      ) : visible.length === 0 ? (
+        <Card className="p-10 text-center border-dashed bg-muted/25 rounded-2xl">
+          <p className="font-semibold">No vouchers match “{q}”</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Try a different name, or clear the search to see all {data.length}.
+          </p>
+        </Card>
       ) : (
-        <ul className="grid gap-3">
-          {data.map((v) => (
+        <ul className="grid gap-2.5">
+          {visible.map((v) => (
             <li key={v.id}>
-              <Card className="p-4 flex items-center gap-4">
-                <div className="size-16 rounded-md bg-muted overflow-hidden flex-shrink-0">
+              <Card className="p-3.5 flex items-center gap-4 rounded-2xl border-border/70 shadow-sm transition-all hover:border-border hover:shadow-md">
+                <div className="size-16 rounded-xl bg-muted overflow-hidden flex-shrink-0 ring-1 ring-border/50">
                   {v.image_url ? (
                     <img src={v.image_url} alt="" className="size-full object-cover" />
                   ) : (
-                    <div className="size-full grid place-items-center text-muted-foreground">
+                    <div className="size-full grid place-items-center text-muted-foreground/50">
                       <Ticket className="size-5" />
                     </div>
                   )}
@@ -241,34 +353,66 @@ function AdminVouchersPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-bold truncate">{v.title}</h3>
-                    {!v.is_active && (
-                      <Badge variant="secondary" className="text-[10px]">
-                        Inactive
-                      </Badge>
-                    )}
                     {v.value_text && (
-                      <Badge className="text-[10px] bg-primary text-primary-foreground">
+                      <Badge className="text-[10px] rounded-full bg-primary text-primary-foreground">
                         {v.value_text}
                       </Badge>
                     )}
                     {v.is_recurring && (
                       <Badge
                         variant="outline"
-                        className="text-[10px] gap-1 border-primary/40 text-primary"
+                        className="text-[10px] rounded-full gap-1 border-primary/40 text-primary"
                       >
                         <Repeat className="size-3" /> Monthly
                       </Badge>
                     )}
+                    {!v.is_active && (
+                      <Badge variant="secondary" className="text-[10px] rounded-full">
+                        Inactive
+                      </Badge>
+                    )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {v.claim_window_hours}h to redeem · available from{" "}
                     {new Date(v.available_from).toLocaleDateString()}
                   </p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium">
+                    <span className="inline-flex items-center gap-1 text-muted-foreground">
+                      <Receipt className="size-3.5" />
+                      <span className="tabular-nums">{counts?.get(v.id)?.claimed ?? 0}</span>{" "}
+                      claimed
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-emerald-600">
+                      <CheckCircle2 className="size-3.5" />
+                      <span className="tabular-nums">{counts?.get(v.id)?.redeemed ?? 0}</span>{" "}
+                      redeemed
+                    </span>
+                  </div>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-1 shrink-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full max-sm:px-2.5"
+                    aria-label={`View redemptions for ${v.title}`}
+                    onClick={() =>
+                      setViewing({
+                        id: v.id,
+                        title: v.title,
+                        value_text: v.value_text,
+                        business_name: v.business_name,
+                        image_url: v.image_url,
+                      })
+                    }
+                  >
+                    <Receipt className="size-4 sm:mr-1.5" />
+                    <span className="max-sm:sr-only">Redemptions</span>
+                  </Button>
                   <Button
                     size="icon"
                     variant="ghost"
+                    className="rounded-full"
+                    aria-label={`Edit ${v.title}`}
                     onClick={() => {
                       const af = toLocalInput(v.available_from);
                       const au = toLocalInput(v.available_until);
@@ -287,7 +431,8 @@ function AdminVouchersPage() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="text-destructive"
+                    className="rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    aria-label={`Delete ${v.title}`}
                     onClick={() => setDeleting(v)}
                   >
                     <Trash2 className="size-4" />
@@ -299,160 +444,15 @@ function AdminVouchersPage() {
         </ul>
       )}
 
-      <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)}>
-        <DialogContent className="max-w-lg sm:max-w-2xl lg:max-w-3xl max-h-[92vh] flex flex-col gap-0 p-0 overflow-hidden rounded-3xl border-0 shadow-2xl shadow-black/20">
-          <DialogHeader className="px-6 md:px-8 py-5 border-b border-border/60 bg-background/85 backdrop-blur-xl shrink-0 text-left">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-primary font-semibold">
-              Vouchers
-            </p>
-            <DialogTitle
-              className="text-2xl tracking-tight"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              {edit?.id ? "Edit voucher" : "New voucher"}
-            </DialogTitle>
-            <DialogDescription>Changes are pushed live to every member's app.</DialogDescription>
-          </DialogHeader>
-          {edit && (
-            <ModalBody>
-              <FormSection title="Business">
-                <div className="grid grid-cols-[auto_1fr] gap-4 items-start p-4 rounded-xl bg-muted/30 border border-dashed">
-                  <ImageUploader
-                    value={edit.business_logo_url}
-                    onChange={(url) => setEdit({ ...edit, business_logo_url: url })}
-                    folder="business-logos"
-                    shape="circle"
-                    label="Business logo"
-                  />
-                  <Field
-                    label="Business name"
-                    hint="Appears on the voucher card and the redemption screen."
-                  >
-                    <Input
-                      placeholder="e.g. Bella Vista Cafe"
-                      value={edit.business_name ?? ""}
-                      onChange={(e) => setEdit({ ...edit, business_name: e.target.value })}
-                    />
-                  </Field>
-                </div>
-                <FieldRow>
-                  <Field label="Business tel" hint="Shown to the customer after they claim.">
-                    <Input
-                      type="tel"
-                      placeholder="e.g. 011 000 0000"
-                      className="tabular-nums"
-                      value={edit.business_phone ?? ""}
-                      onChange={(e) => setEdit({ ...edit, business_phone: e.target.value })}
-                    />
-                  </Field>
-                  <Field label="Address" hint="Where the customer redeems it.">
-                    <Input
-                      placeholder="e.g. 12 Main Rd, Krugersdorp"
-                      value={edit.business_address ?? ""}
-                      onChange={(e) => setEdit({ ...edit, business_address: e.target.value })}
-                    />
-                  </Field>
-                </FieldRow>
-              </FormSection>
-
-              <FormSection title="The offer">
-                <Field label="Cover image" hint="The whole image is shown — no cropping.">
-                  <ImageUploader
-                    value={edit.image_url}
-                    onChange={(url) => setEdit({ ...edit, image_url: url })}
-                    folder="vouchers"
-                    fit="contain"
-                  />
-                </Field>
-                <FieldRow>
-                  <Field label="Title" required>
-                    <Input
-                      placeholder="e.g. Free coffee on us"
-                      value={edit.title ?? ""}
-                      onChange={(e) => setEdit({ ...edit, title: e.target.value })}
-                    />
-                  </Field>
-                  <Field label="Value / offer text">
-                    <Input
-                      placeholder="e.g. R50 off · Free coffee · 20% off"
-                      value={edit.value_text ?? ""}
-                      onChange={(e) => setEdit({ ...edit, value_text: e.target.value })}
-                    />
-                  </Field>
-                </FieldRow>
-                <Field label="Description">
-                  <Textarea
-                    rows={3}
-                    placeholder="What the member gets and how to use it..."
-                    value={edit.description ?? ""}
-                    onChange={(e) => setEdit({ ...edit, description: e.target.value })}
-                  />
-                </Field>
-                <Field label="Terms &amp; conditions">
-                  <Textarea
-                    rows={2}
-                    placeholder="Any limits, exclusions or fine print..."
-                    value={edit.terms ?? ""}
-                    onChange={(e) => setEdit({ ...edit, terms: e.target.value })}
-                  />
-                </Field>
-              </FormSection>
-
-              <FormSection title="Availability">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <Field
-                    label="Claim window (hours)"
-                    hint="Time to redeem after claiming. Default 48h."
-                  >
-                    <Input
-                      type="number"
-                      min={1}
-                      value={edit.claim_window_hours ?? 48}
-                      onChange={(e) =>
-                        setEdit({ ...edit, claim_window_hours: Number(e.target.value) })
-                      }
-                    />
-                  </Field>
-                  <DateTimeField
-                    label="Available from"
-                    dateValue={edit.available_from_date ?? ""}
-                    timeValue={edit.available_from_time ?? ""}
-                    onDate={(v) => setEdit({ ...edit, available_from_date: v })}
-                    onTime={(v) => setEdit({ ...edit, available_from_time: v })}
-                  />
-                  <DateTimeField
-                    label="Available until"
-                    dateValue={edit.available_until_date ?? ""}
-                    timeValue={edit.available_until_time ?? ""}
-                    onDate={(v) => setEdit({ ...edit, available_until_date: v })}
-                    onTime={(v) => setEdit({ ...edit, available_until_time: v })}
-                  />
-                </div>
-
-                <ToggleRow
-                  label="Recurring monthly"
-                  description="Re-opens for every member at the start of each month — even after they've used it. Perfect for a standing member benefit."
-                >
-                  <Switch
-                    id="recurring"
-                    checked={edit.is_recurring ?? false}
-                    onCheckedChange={(v) => setEdit({ ...edit, is_recurring: v })}
-                  />
-                </ToggleRow>
-                <ToggleRow label="Active" description="Visible and claimable in the member app.">
-                  <Switch
-                    id="active"
-                    checked={edit.is_active ?? true}
-                    onCheckedChange={(v) => setEdit({ ...edit, is_active: v })}
-                  />
-                </ToggleRow>
-                <p className="text-[11px] text-muted-foreground italic">
-                  A push notification is sent automatically to all opted-in members when you create
-                  a new active voucher.
-                </p>
-              </FormSection>
-            </ModalBody>
-          )}
+      <AdminModal
+        open={!!edit}
+        onOpenChange={(o) => !o && setEdit(null)}
+        eyebrow="Vouchers"
+        icon={Ticket}
+        size="xl"
+        title={edit?.id ? "Edit voucher" : "New voucher"}
+        description="Changes are pushed live to every member's app."
+        footer={
           <ModalFooter
             hint={
               edit?.id
@@ -464,30 +464,186 @@ function AdminVouchersPage() {
             saving={save.isPending}
             saveLabel={edit?.id ? "Save changes" : "Publish voucher"}
           />
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this voucher?</AlertDialogTitle>
-            <AlertDialogDescription>
-              "{deleting?.title}" will disappear from the app. Existing member claims keep working.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                if (deleting) del.mutate(deleting.id);
-              }}
+        }
+      >
+        {edit && (
+          <ModalBody>
+            <FormSection
+              title="Business"
+              description="Who's giving the offer — shown on the voucher and the redemption screen."
             >
-              {del.isPending ? <Loader2 className="size-4 animate-spin" /> : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              <Panel className="grid grid-cols-[auto_1fr] items-center gap-5 max-sm:grid-cols-1 max-sm:justify-items-center max-sm:text-center">
+                <ImageUploader
+                  value={edit.business_logo_url}
+                  onChange={(url) => setEdit({ ...edit, business_logo_url: url })}
+                  folder="business-logos"
+                  shape="circle"
+                  label="Business logo"
+                />
+                <Field label="Business name" className="w-full max-sm:text-left">
+                  <Input
+                    placeholder="e.g. Bella Vista Cafe"
+                    value={edit.business_name ?? ""}
+                    onChange={(e) => setEdit({ ...edit, business_name: e.target.value })}
+                  />
+                </Field>
+              </Panel>
+              <FieldRow>
+                <Field label="Business tel" hint="Shown to the customer after they claim.">
+                  <Input
+                    type="tel"
+                    placeholder="e.g. 011 000 0000"
+                    className="tabular-nums"
+                    value={edit.business_phone ?? ""}
+                    onChange={(e) => setEdit({ ...edit, business_phone: e.target.value })}
+                  />
+                </Field>
+                <Field label="Address" hint="Where the customer redeems it.">
+                  <Input
+                    placeholder="e.g. 12 Main Rd, Krugersdorp"
+                    value={edit.business_address ?? ""}
+                    onChange={(e) => setEdit({ ...edit, business_address: e.target.value })}
+                  />
+                </Field>
+              </FieldRow>
+            </FormSection>
+
+            <FormSection
+              title="Cover image"
+              description="The whole image is shown — never cropped."
+            >
+              <ImageUploader
+                value={edit.image_url}
+                onChange={(url) => setEdit({ ...edit, image_url: url })}
+                folder="vouchers"
+                aspect="16 / 9"
+                label="Add a voucher image"
+                hint="Landscape works best. JPG, PNG or WebP up to 5MB."
+              />
+            </FormSection>
+
+            <FormSection title="The offer">
+              <FieldRow>
+                <Field label="Title" required>
+                  <Input
+                    placeholder="e.g. Free coffee on us"
+                    value={edit.title ?? ""}
+                    onChange={(e) => setEdit({ ...edit, title: e.target.value })}
+                  />
+                </Field>
+                <Field label="Value / offer text" hint="The badge members see on the card.">
+                  <Input
+                    placeholder="e.g. R50 off · Free coffee · 20% off"
+                    value={edit.value_text ?? ""}
+                    onChange={(e) => setEdit({ ...edit, value_text: e.target.value })}
+                  />
+                </Field>
+              </FieldRow>
+              <Field label="Description">
+                <Textarea
+                  rows={3}
+                  placeholder="What the member gets and how to use it..."
+                  value={edit.description ?? ""}
+                  onChange={(e) => setEdit({ ...edit, description: e.target.value })}
+                />
+              </Field>
+              <Field label="Terms &amp; conditions">
+                <Textarea
+                  rows={2}
+                  placeholder="Any limits, exclusions or fine print..."
+                  value={edit.terms ?? ""}
+                  onChange={(e) => setEdit({ ...edit, terms: e.target.value })}
+                />
+              </Field>
+            </FormSection>
+
+            <FormSection title="Availability">
+              <Field
+                label="Claim window"
+                hint="How long a member has to redeem after claiming."
+                className="max-w-56"
+              >
+                <div className="slk-fieldbox">
+                  <input
+                    type="number"
+                    min={1}
+                    className="slk-bare text-sm tabular-nums"
+                    value={edit.claim_window_hours ?? 48}
+                    onChange={(e) =>
+                      setEdit({ ...edit, claim_window_hours: Number(e.target.value) })
+                    }
+                  />
+                  <span className="select-none text-sm font-medium text-muted-foreground">
+                    hours
+                  </span>
+                </div>
+              </Field>
+              <FieldRow>
+                <DateTimeField
+                  label="Available from"
+                  hint="Leave blank to start right away."
+                  dateValue={edit.available_from_date ?? ""}
+                  timeValue={edit.available_from_time ?? ""}
+                  onDate={(v) => setEdit({ ...edit, available_from_date: v })}
+                  onTime={(v) => setEdit({ ...edit, available_from_time: v })}
+                />
+                <DateTimeField
+                  label="Available until"
+                  hint="Leave blank for no end date."
+                  dateValue={edit.available_until_date ?? ""}
+                  timeValue={edit.available_until_time ?? ""}
+                  onDate={(v) => setEdit({ ...edit, available_until_date: v })}
+                  onTime={(v) => setEdit({ ...edit, available_until_time: v })}
+                />
+              </FieldRow>
+
+              <ToggleRow
+                label="Recurring monthly"
+                description="Re-opens for every member at the start of each month — even after they've used it. Perfect for a standing member benefit."
+              >
+                <Switch
+                  id="recurring"
+                  checked={edit.is_recurring ?? false}
+                  onCheckedChange={(v) => setEdit({ ...edit, is_recurring: v })}
+                />
+              </ToggleRow>
+              <ToggleRow label="Active" description="Visible and claimable in the member app.">
+                <Switch
+                  id="active"
+                  checked={edit.is_active ?? true}
+                  onCheckedChange={(v) => setEdit({ ...edit, is_active: v })}
+                />
+              </ToggleRow>
+              <InfoNote icon={Bell}>
+                Creating a new active voucher sends a push notification to every opted-in member
+                automatically.
+              </InfoNote>
+            </FormSection>
+          </ModalBody>
+        )}
+      </AdminModal>
+
+      <VoucherRedemptionsModal
+        voucher={viewing}
+        open={!!viewing}
+        onOpenChange={(o) => !o && setViewing(null)}
+      />
+
+      <ConfirmDialog
+        open={!!deleting}
+        onOpenChange={(o) => !o && setDeleting(null)}
+        icon={Trash2}
+        title="Delete this voucher?"
+        description={
+          <>
+            <span className="font-medium text-foreground">{deleting?.title}</span> will disappear
+            from the app. Vouchers members have already claimed keep working.
+          </>
+        }
+        onConfirm={() => deleting && del.mutate(deleting.id)}
+        loading={del.isPending}
+        confirmLabel="Delete voucher"
+      />
     </div>
   );
 }

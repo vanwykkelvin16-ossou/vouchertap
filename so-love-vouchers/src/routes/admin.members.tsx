@@ -449,9 +449,7 @@ function AdminMembersPage() {
                       <Button
                         size="sm"
                         variant={viewing.isAdmin ? "outline" : "default"}
-                        onClick={() =>
-                          setRoleConfirm({ member: viewing, grant: !viewing.isAdmin })
-                        }
+                        onClick={() => setRoleConfirm({ member: viewing, grant: !viewing.isAdmin })}
                         disabled={setRole.isPending}
                       >
                         {viewing.isAdmin ? (

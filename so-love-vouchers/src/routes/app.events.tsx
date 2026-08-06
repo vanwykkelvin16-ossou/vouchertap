@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, MapPin, Loader2, Pin, Clock } from "lucide-react";
+import { CalendarDays, MapPin, Loader2, Pin, Clock, ExternalLink } from "lucide-react";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime";
 import { SmartImage } from "@/components/smart-image";
 
@@ -202,6 +202,14 @@ function EventsPage() {
                         </div>
                       )}
                     </div>
+                    {event.form_url && (
+                      <Button asChild className="w-full mt-auto rounded-xl h-12 font-semibold">
+                        <a href={event.form_url} target="_blank" rel="noopener noreferrer">
+                          Register
+                          <ExternalLink className="size-4 ml-1.5" />
+                        </a>
+                      </Button>
+                    )}
                   </div>
                 </Card>
               </li>

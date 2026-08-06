@@ -93,6 +93,7 @@ CREATE TABLE public.events (
   starts_at TIMESTAMPTZ NOT NULL,
   ends_at TIMESTAMPTZ,
   is_published BOOLEAN NOT NULL DEFAULT true,
+  form_url TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -8,8 +8,7 @@ import { CalendarDays, MapPin, Clock, Mic2, ArrowLeft, Loader2 } from "lucide-re
 import { useRealtimeInvalidate } from "@/hooks/use-realtime";
 import breakfastHero from "@/assets/breakfast-hero.jpg";
 
-const RSVP_FORM_SRC = "https://link.dnasupersystems.com/widget/form/ReMBHhH8fEZoKbItzl02";
-const RSVP_EMBED_SCRIPT = "https://link.dnasupersystems.com/js/form_embed.js";
+const RSVP_JOTFORM_SRC = "https://form.jotform.com/jsform/262153628816562";
 const VENUE = "Bella Vista Wedding Venue";
 const START_TIME = "07:30";
 
@@ -77,12 +76,16 @@ function SectionHeading({ no, title }: { no: string; title: string }) {
 function BreakfastPage() {
   useRealtimeInvalidate("breakfast_meetings", [["breakfast-meetings"]]);
 
+  const rsvpFormRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    if (document.querySelector(`script[src="${RSVP_EMBED_SCRIPT}"]`)) return;
+    const container = rsvpFormRef.current;
+    if (!container) return;
+    if (container.querySelector(`script[src="${RSVP_JOTFORM_SRC}"]`)) return;
     const s = document.createElement("script");
-    s.src = RSVP_EMBED_SCRIPT;
-    s.async = true;
-    document.body.appendChild(s);
+    s.src = RSVP_JOTFORM_SRC;
+    s.type = "text/javascript";
+    container.appendChild(s);
   }, []);
 
   const { data: meetings, isLoading } = useQuery({
@@ -269,28 +272,10 @@ function BreakfastPage() {
         <p className="text-sm text-muted-foreground -mt-2 mb-5 max-w-md">
           Fill in your details and we'll set a place for you at the table.
         </p>
-        <div className="rounded-2xl bg-white border border-border shadow-sm overflow-hidden">
-          <iframe
-            src={RSVP_FORM_SRC}
-            id="inline-ReMBHhH8fEZoKbItzl02"
-            data-layout='{"id":"INLINE"}'
-            data-trigger-type="alwaysShow"
-            data-activation-type="alwaysActivated"
-            data-deactivation-type="neverDeactivate"
-            data-form-name="RSVP FORM"
-            data-height="1450"
-            data-layout-iframe-id="inline-ReMBHhH8fEZoKbItzl02"
-            data-form-id="ReMBHhH8fEZoKbItzl02"
-            title="RSVP FORM"
-            style={{
-              width: "100%",
-              minHeight: 1600,
-              border: "none",
-              background: "white",
-              display: "block",
-            }}
-          />
-        </div>
+        <div
+          ref={rsvpFormRef}
+          className="rounded-2xl bg-white border border-border shadow-sm overflow-hidden"
+        />
       </section>
 
       {/* 03 — Upcoming dates */}

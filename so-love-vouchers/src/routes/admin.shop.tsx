@@ -6,16 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -24,12 +16,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  AdminModal,
   ModalBody,
   FormSection,
   Field,
   FieldRow,
   ToggleRow,
   ModalFooter,
+  ConfirmDialog,
+  TagInput,
 } from "@/components/admin/form-kit";
 import { Plus, Pencil, Trash2, Loader2, ShoppingBag, Shirt } from "lucide-react";
 import { toast } from "sonner";
@@ -73,6 +68,10 @@ const SIZE_PRESETS: Record<string, string> = {
   cap: "One Size",
 };
 
+/** One-tap additions in the chip fields — plain shortcuts, nothing enforced. */
+const COLOUR_SUGGESTIONS = ["Black", "White", "Navy", "Grey", "Red"];
+const SIZE_SUGGESTIONS = ["S", "M", "L", "XL", "XXL", "3XL", "One Size"];
+
 function parseList(text: string) {
   return text
     .split(",")
@@ -96,6 +95,7 @@ const blank: EditState = {
 function AdminShop() {
   const qc = useQueryClient();
   const [edit, setEdit] = useState<EditState | null>(null);
+  const [deleting, setDeleting] = useState<(ProductRow & { id: string }) | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-shop"],
@@ -163,6 +163,7 @@ function AdminShop() {
     },
     onSuccess: () => {
       toast.success("Product deleted");
+      setDeleting(null);
       qc.invalidateQueries({ queryKey: ["admin-shop"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -196,7 +197,7 @@ function AdminShop() {
             Manage SLK merch - pricing, colours, sizes and stock visibility.
           </p>
         </div>
-        <Button onClick={() => openEdit()} className="gap-2 shrink-0">
+        <Button onClick={() => openEdit()} className="gap-2 shrink-0 rounded-full px-5 shadow-sm">
           <Plus className="size-4" /> New product
         </Button>
       </div>
@@ -206,8 +207,8 @@ function AdminShop() {
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
       ) : !data?.length ? (
-        <Card className="p-10 text-center border-dashed bg-muted/30">
-          <div className="size-12 mx-auto rounded-full bg-primary/10 text-primary grid place-items-center mb-3">
+        <Card className="p-10 text-center border-dashed bg-muted/25 rounded-2xl">
+          <div className="size-12 mx-auto rounded-2xl bg-primary/10 text-primary grid place-items-center mb-3">
             <ShoppingBag className="size-6" />
           </div>
           <p className="font-semibold">No products yet</p>
@@ -216,13 +217,13 @@ function AdminShop() {
           </p>
         </Card>
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-2.5">
           {data.map((p) => (
             <li key={p.id}>
-              <Card className="p-4 flex items-center gap-4">
-                <div className="size-16 rounded-xl bg-muted overflow-hidden shrink-0 grid place-items-center">
+              <Card className="p-3.5 flex items-center gap-4 rounded-2xl border-border/70 shadow-sm transition-all hover:border-border hover:shadow-md">
+                <div className="size-16 rounded-xl bg-muted overflow-hidden shrink-0 grid place-items-center ring-1 ring-border/50">
                   {p.image_url ? (
-                    <img src={p.image_url} alt={p.name} className="size-full object-contain" />
+                    <img src={p.image_url} alt={p.name} className="size-full object-contain p-1" />
                   ) : (
                     <Shirt className="size-6 text-muted-foreground/40" />
                   )}
@@ -230,16 +231,16 @@ function AdminShop() {
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-semibold truncate">{p.name}</p>
-                    <Badge variant="outline" className="text-[10px] uppercase">
+                    <Badge variant="outline" className="text-[10px] rounded-full uppercase">
                       {p.category}
                     </Badge>
                     {!p.is_active && (
-                      <Badge variant="secondary" className="text-[10px]">
+                      <Badge variant="secondary" className="text-[10px] rounded-full">
                         Hidden
                       </Badge>
                     )}
                   </div>
-                  <p className="text-sm text-muted-foreground mt-0.5 truncate">
+                  <p className="text-sm text-muted-foreground mt-1 truncate">
                     <span className="font-serial font-bold text-primary">
                       R {Number(p.price).toFixed(0)}
                     </span>
@@ -248,16 +249,21 @@ function AdminShop() {
                   </p>
                 </div>
                 <div className="flex gap-1 shrink-0">
-                  <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full"
+                    aria-label={`Edit ${p.name}`}
+                    onClick={() => openEdit(p)}
+                  >
                     <Pencil className="size-4" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="text-destructive"
-                    onClick={() => {
-                      if (confirm(`Delete "${p.name}"?`)) remove.mutate(p.id);
-                    }}
+                    className="rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    aria-label={`Delete ${p.name}`}
+                    onClick={() => setDeleting(p)}
                   >
                     <Trash2 className="size-4" />
                   </Button>
@@ -268,221 +274,14 @@ function AdminShop() {
         </ul>
       )}
 
-      <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)}>
-        <DialogContent className="max-w-lg sm:max-w-2xl max-h-[92vh] flex flex-col gap-0 p-0 overflow-hidden rounded-3xl border-0 shadow-2xl shadow-black/20">
-          <DialogHeader className="px-6 md:px-8 py-5 border-b border-border/60 bg-background/85 backdrop-blur-xl shrink-0 text-left">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-primary font-semibold">
-              Shop
-            </p>
-            <DialogTitle
-              className="text-2xl tracking-tight"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              {edit?.id ? "Edit product" : "New product"}
-            </DialogTitle>
-            <DialogDescription>Live in the member shop as soon as you publish.</DialogDescription>
-          </DialogHeader>
-
-          {edit && (
-            <ModalBody>
-              <FormSection title="Product">
-                {(() => {
-                  const colorList = parseList(edit.colorsText);
-                  const setImageAt = (i: number, url: string | null) => {
-                    const next = [...edit.images];
-                    while (next.length <= i) next.push(null);
-                    next[i] = url;
-                    setEdit({ ...edit, images: next });
-                  };
-                  if (colorList.length > 0) {
-                    // One photo per colour — the shop swaps to it when a
-                    // customer picks that colour. First filled photo is the cover.
-                    return (
-                      <div>
-                        <Label className="mb-2 block">
-                          Photo per colour{" "}
-                          <span className="text-muted-foreground font-normal">
-                            (shown when the customer picks that colour)
-                          </span>
-                        </Label>
-                        <div className="grid grid-cols-3 gap-3">
-                          {colorList.map((c, i) => (
-                            <div key={c + i} className="space-y-1">
-                              <ImageUploader
-                                value={edit.images[i] ?? null}
-                                onChange={(url) => setImageAt(i, url)}
-                                folder="shop"
-                              />
-                              <p className="text-[10px] text-center font-medium truncate">{c}</p>
-                            </div>
-                          ))}
-                        </div>
-                        <p className="text-[11px] text-muted-foreground mt-2">
-                          Add colours below first; each gets its own photo here.
-                        </p>
-                      </div>
-                    );
-                  }
-                  return (
-                    <div>
-                      <Label className="mb-2 block">
-                        Photos{" "}
-                        <span className="text-muted-foreground font-normal">
-                          (up to 3 — first is the cover)
-                        </span>
-                      </Label>
-                      <div className="grid grid-cols-3 gap-3">
-                        {[0, 1, 2].map((i) => (
-                          <div key={i} className="space-y-1">
-                            <ImageUploader
-                              value={edit.images[i] ?? null}
-                              onChange={(url) => setImageAt(i, url)}
-                              folder="shop"
-                            />
-                            <p className="text-[10px] text-center text-muted-foreground">
-                              {i === 0 ? "Cover" : `Photo ${i + 1}`}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <Label>Name *</Label>
-                    <Input
-                      placeholder="e.g. SLK Classic Golfer"
-                      value={edit.name}
-                      onChange={(e) => setEdit({ ...edit, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Category</Label>
-                    <Select
-                      value={edit.category}
-                      onValueChange={(v) =>
-                        setEdit({
-                          ...edit,
-                          category: v,
-                          sizesText:
-                            edit.sizesText === "" ||
-                            Object.values(SIZE_PRESETS).includes(edit.sizesText)
-                              ? (SIZE_PRESETS[v] ?? edit.sizesText)
-                              : edit.sizesText,
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CATEGORIES.map((c) => (
-                          <SelectItem key={c.value} value={c.value}>
-                            {c.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Description</Label>
-                  <Textarea
-                    rows={3}
-                    placeholder="Fabric, fit, embroidery details..."
-                    value={edit.description ?? ""}
-                    onChange={(e) => setEdit({ ...edit, description: e.target.value })}
-                  />
-                </div>
-              </FormSection>
-
-              <FormSection title="Pricing &amp; options">
-                <FieldRow>
-                  <Field label="Price" required>
-                    <div className="slk-fieldbox">
-                      <span className="text-sm font-semibold text-muted-foreground select-none">
-                        R
-                      </span>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="350"
-                        className="slk-bare font-serial text-sm"
-                        value={edit.priceText}
-                        onChange={(e) => {
-                          const v = e.target.value.replace(/[^0-9.,]/g, "");
-                          setEdit({ ...edit, priceText: v });
-                        }}
-                      />
-                    </div>
-                  </Field>
-                  <Field label="Display order" hint="Lower numbers show first in the shop.">
-                    <Input
-                      type="number"
-                      min={0}
-                      value={edit.sort_order}
-                      onChange={(e) => setEdit({ ...edit, sort_order: Number(e.target.value) })}
-                    />
-                  </Field>
-                </FieldRow>
-
-                <Field
-                  label="Colours"
-                  hint="Separate with commas — members pick one when ordering."
-                >
-                  <Input
-                    placeholder="Black, White, Red, Navy"
-                    value={edit.colorsText}
-                    onChange={(e) => setEdit({ ...edit, colorsText: e.target.value })}
-                  />
-                  {parseList(edit.colorsText).length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-1.5">
-                      {parseList(edit.colorsText).map((c) => (
-                        <Badge
-                          key={c}
-                          variant="secondary"
-                          className="text-[10px] rounded-full px-2.5"
-                        >
-                          {c}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </Field>
-
-                <Field label="Sizes" hint="Separate with commas.">
-                  <Input
-                    placeholder="S, M, L, XL, XXL"
-                    value={edit.sizesText}
-                    onChange={(e) => setEdit({ ...edit, sizesText: e.target.value })}
-                  />
-                  {parseList(edit.sizesText).length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-1.5">
-                      {parseList(edit.sizesText).map((s) => (
-                        <Badge
-                          key={s}
-                          variant="secondary"
-                          className="text-[10px] rounded-full px-2.5"
-                        >
-                          {s}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </Field>
-
-                <ToggleRow label="Active" description="Visible in the member shop.">
-                  <Switch
-                    id="shop-active"
-                    checked={edit.is_active}
-                    onCheckedChange={(v) => setEdit({ ...edit, is_active: v })}
-                  />
-                </ToggleRow>
-              </FormSection>
-            </ModalBody>
-          )}
-
+      <AdminModal
+        open={!!edit}
+        onOpenChange={(o) => !o && setEdit(null)}
+        eyebrow="Shop"
+        icon={ShoppingBag}
+        title={edit?.id ? "Edit product" : "New product"}
+        description="Live in the member shop as soon as you publish."
+        footer={
           <ModalFooter
             hint={
               edit?.id
@@ -494,8 +293,197 @@ function AdminShop() {
             saving={save.isPending}
             saveLabel={edit?.id ? "Save changes" : "Publish product"}
           />
-        </DialogContent>
-      </Dialog>
+        }
+      >
+        {edit && (
+          <ModalBody>
+            <FormSection title="Details">
+              <FieldRow>
+                <Field label="Name" required>
+                  <Input
+                    placeholder="e.g. SLK Classic Golfer"
+                    value={edit.name}
+                    onChange={(e) => setEdit({ ...edit, name: e.target.value })}
+                  />
+                </Field>
+                <Field label="Category">
+                  <Select
+                    value={edit.category}
+                    onValueChange={(v) =>
+                      setEdit({
+                        ...edit,
+                        category: v,
+                        sizesText:
+                          edit.sizesText === "" ||
+                          Object.values(SIZE_PRESETS).includes(edit.sizesText)
+                            ? (SIZE_PRESETS[v] ?? edit.sizesText)
+                            : edit.sizesText,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIES.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>
+                          {c.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </FieldRow>
+              <Field label="Description">
+                <Textarea
+                  rows={3}
+                  placeholder="Fabric, fit, embroidery details..."
+                  value={edit.description ?? ""}
+                  onChange={(e) => setEdit({ ...edit, description: e.target.value })}
+                />
+              </Field>
+            </FormSection>
+
+            <FormSection
+              title="Pricing &amp; options"
+              description="Colours and sizes become the choices a member picks when ordering."
+            >
+              <FieldRow>
+                <Field label="Price" required>
+                  <div className="slk-fieldbox">
+                    <span className="text-sm font-semibold text-muted-foreground select-none">
+                      R
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="350"
+                      className="slk-bare font-serial text-sm"
+                      value={edit.priceText}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/[^0-9.,]/g, "");
+                        setEdit({ ...edit, priceText: v });
+                      }}
+                    />
+                  </div>
+                </Field>
+                <Field label="Display order" hint="Lower numbers show first in the shop.">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={edit.sort_order}
+                    onChange={(e) => setEdit({ ...edit, sort_order: Number(e.target.value) })}
+                  />
+                </Field>
+              </FieldRow>
+
+              <Field
+                label="Colours"
+                hint="Type a colour and press Enter. Each one gets its own photo below."
+              >
+                <TagInput
+                  value={edit.colorsText}
+                  onChange={(v) => setEdit({ ...edit, colorsText: v })}
+                  placeholder="Black, White, Red…"
+                  suggestions={COLOUR_SUGGESTIONS}
+                />
+              </Field>
+
+              <Field label="Sizes" hint="Type a size and press Enter.">
+                <TagInput
+                  value={edit.sizesText}
+                  onChange={(v) => setEdit({ ...edit, sizesText: v })}
+                  placeholder="S, M, L, XL…"
+                  suggestions={SIZE_SUGGESTIONS}
+                />
+              </Field>
+            </FormSection>
+
+            <FormSection
+              title="Photos"
+              description={
+                parseList(edit.colorsText).length > 0
+                  ? "One photo per colour — the shop swaps to it when a member picks that colour. The first photo is the cover."
+                  : "Up to three photos. The first one is the cover shown in the shop grid."
+              }
+            >
+              {(() => {
+                const colorList = parseList(edit.colorsText);
+                const setImageAt = (i: number, url: string | null) => {
+                  const next = [...edit.images];
+                  while (next.length <= i) next.push(null);
+                  next[i] = url;
+                  setEdit({ ...edit, images: next });
+                };
+                const slots =
+                  colorList.length > 0
+                    ? colorList.map((c, i) => ({ key: `${c}-${i}`, index: i, caption: c }))
+                    : [0, 1, 2].map((i) => ({
+                        key: `slot-${i}`,
+                        index: i,
+                        caption: i === 0 ? "Cover" : `Photo ${i + 1}`,
+                      }));
+                const coverIndex = slots.findIndex((s) => !!edit.images[s.index]);
+
+                return (
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {slots.map((s, idx) => (
+                      <div key={s.key} className="space-y-2">
+                        <ImageUploader
+                          value={edit.images[s.index] ?? null}
+                          onChange={(url) => setImageAt(s.index, url)}
+                          folder="shop"
+                          aspect="4 / 5"
+                          label="Add photo"
+                        />
+                        <div className="flex items-center justify-center gap-1.5">
+                          <p className="truncate text-[11px] font-medium" title={s.caption}>
+                            {s.caption}
+                          </p>
+                          {coverIndex === idx && (
+                            <Badge
+                              variant="secondary"
+                              className="rounded-full px-1.5 py-0 text-[9px] uppercase tracking-wider"
+                            >
+                              Cover
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </FormSection>
+
+            <FormSection title="Visibility">
+              <ToggleRow label="Active" description="Visible in the member shop.">
+                <Switch
+                  id="shop-active"
+                  checked={edit.is_active}
+                  onCheckedChange={(v) => setEdit({ ...edit, is_active: v })}
+                />
+              </ToggleRow>
+            </FormSection>
+          </ModalBody>
+        )}
+      </AdminModal>
+
+      <ConfirmDialog
+        open={!!deleting}
+        onOpenChange={(o) => !o && setDeleting(null)}
+        icon={Trash2}
+        title="Delete this product?"
+        description={
+          <>
+            <span className="font-medium text-foreground">{deleting?.name}</span> will be removed
+            from the member shop immediately. This can't be undone.
+          </>
+        }
+        onConfirm={() => deleting && remove.mutate(deleting.id)}
+        loading={remove.isPending}
+        confirmLabel="Delete product"
+      />
     </div>
   );
 }

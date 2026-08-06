@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { grantAccess, hasAccess } from "@/lib/access-code";
+import { ACCESS_CODE, grantAccess, hasAccess } from "@/lib/access-code";
 import { toast } from "sonner";
 import {} from "lucide-react";
 import { BrandHeart } from "@/components/brand-heart";
@@ -49,18 +49,18 @@ function AccessCodePage() {
 
         <form onSubmit={handleSubmit} className="w-full flex flex-col items-center gap-6">
           <InputOTP
-            maxLength={6}
+            maxLength={ACCESS_CODE.length}
             value={code}
             onChange={setCode}
             pattern="^[A-Za-z0-9]*$"
             containerClassName="justify-center"
           >
             <InputOTPGroup>
-              {Array.from({ length: 6 }).map((_, i) => (
+              {Array.from({ length: ACCESS_CODE.length }).map((_, i) => (
                 <InputOTPSlot
                   key={i}
                   index={i}
-                  className="size-11 text-lg font-serial font-semibold uppercase"
+                  className="size-9 text-lg font-serial font-semibold uppercase"
                 />
               ))}
             </InputOTPGroup>
@@ -70,7 +70,7 @@ function AccessCodePage() {
             type="submit"
             size="lg"
             className="w-full"
-            disabled={code.length < 6 || submitting}
+            disabled={code.length < ACCESS_CODE.length || submitting}
           >
             Continue
           </Button>

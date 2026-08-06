@@ -9,30 +9,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
+  AdminModal,
   ModalBody,
   FormSection,
   Field,
   DateTimeField,
   ToggleRow,
   ModalFooter,
+  ConfirmDialog,
+  Panel,
 } from "@/components/admin/form-kit";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { ImageUploader } from "@/components/image-uploader";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime";
 import { Plus, Pencil, Trash2, Loader2, Mic2, CalendarDays } from "lucide-react";
@@ -157,7 +143,7 @@ function AdminBreakfastPage() {
             Upload the speaker for each bi-weekly Friday breakfast.
           </p>
         </div>
-        <Button onClick={() => setEdit(empty)}>
+        <Button onClick={() => setEdit(empty)} className="rounded-full px-5 shadow-sm shrink-0">
           <Plus className="size-4 mr-1.5" /> Add speaker
         </Button>
       </header>
@@ -167,22 +153,25 @@ function AdminBreakfastPage() {
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
       ) : !data || data.length === 0 ? (
-        <Card className="p-8 text-center border-dashed">
+        <Card className="p-10 text-center border-dashed bg-muted/25 rounded-2xl">
+          <div className="size-12 mx-auto rounded-2xl bg-primary/10 text-primary grid place-items-center mb-3">
+            <Mic2 className="size-6" />
+          </div>
           <p className="font-semibold">No meetings yet</p>
           <p className="text-sm text-muted-foreground mt-1">
             Add the speaker info for an upcoming breakfast.
           </p>
         </Card>
       ) : (
-        <ul className="grid gap-3">
+        <ul className="grid gap-2.5">
           {data.map((m) => (
             <li key={m.id}>
-              <Card className="p-4 flex items-center gap-4">
-                <div className="size-16 rounded-full bg-muted overflow-hidden flex-shrink-0">
+              <Card className="p-3.5 flex items-center gap-4 rounded-2xl border-border/70 shadow-sm transition-all hover:border-border hover:shadow-md">
+                <div className="size-16 rounded-full bg-muted overflow-hidden flex-shrink-0 ring-1 ring-border/50">
                   {m.speaker_image_url ? (
                     <img src={m.speaker_image_url} alt="" className="size-full object-cover" />
                   ) : (
-                    <div className="size-full grid place-items-center text-muted-foreground">
+                    <div className="size-full grid place-items-center text-muted-foreground/50">
                       <Mic2 className="size-5" />
                     </div>
                   )}
@@ -191,12 +180,12 @@ function AdminBreakfastPage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-bold truncate">{m.speaker_name ?? "Speaker TBA"}</h3>
                     {!m.is_published && (
-                      <Badge variant="secondary" className="text-[10px]">
+                      <Badge variant="secondary" className="text-[10px] rounded-full">
                         Hidden
                       </Badge>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5 inline-flex items-center gap-1">
+                  <p className="text-xs text-muted-foreground mt-1 inline-flex items-center gap-1.5">
                     <CalendarDays className="size-3" />
                     {new Date(m.meeting_date).toLocaleString()}
                   </p>
@@ -206,10 +195,12 @@ function AdminBreakfastPage() {
                     </p>
                   )}
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-1 shrink-0">
                   <Button
                     size="icon"
                     variant="ghost"
+                    className="rounded-full"
+                    aria-label={`Edit ${m.speaker_name ?? "meeting"}`}
                     onClick={() => {
                       const dt = toLocalInput(m.meeting_date);
                       setEdit({
@@ -225,7 +216,8 @@ function AdminBreakfastPage() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="text-destructive"
+                    className="rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    aria-label={`Delete ${m.speaker_name ?? "meeting"}`}
                     onClick={() => setDeleting(m)}
                   >
                     <Trash2 className="size-4" />
@@ -237,87 +229,14 @@ function AdminBreakfastPage() {
         </ul>
       )}
 
-      <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)}>
-        <DialogContent className="max-w-lg sm:max-w-2xl max-h-[92vh] flex flex-col gap-0 p-0 overflow-hidden rounded-3xl border-0 shadow-2xl shadow-black/20">
-          <DialogHeader className="px-6 md:px-8 py-5 border-b border-border/60 bg-background/85 backdrop-blur-xl shrink-0 text-left">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-primary font-semibold">
-              Breakfast
-            </p>
-            <DialogTitle
-              className="text-2xl tracking-tight"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              {edit?.id ? "Edit speaker" : "Add speaker"}
-            </DialogTitle>
-            <DialogDescription>
-              Appears on the breakfast booking page for everyone.
-            </DialogDescription>
-          </DialogHeader>
-          {edit && (
-            <ModalBody>
-              <FormSection title="Speaker">
-                <div className="p-4 rounded-xl bg-muted/30 border border-dashed">
-                  <ImageUploader
-                    value={edit.speaker_image_url}
-                    onChange={(url) => setEdit({ ...edit, speaker_image_url: url })}
-                    folder="breakfast"
-                    shape="circle"
-                    label="Speaker photo"
-                  />
-                </div>
-                <Field label="Speaker name">
-                  <Input
-                    placeholder="e.g. Jane Dlamini"
-                    value={edit.speaker_name ?? ""}
-                    onChange={(e) => setEdit({ ...edit, speaker_name: e.target.value })}
-                  />
-                </Field>
-                <Field label="Speaker title / role">
-                  <Input
-                    placeholder="e.g. Founder of Acme Co."
-                    value={edit.speaker_title ?? ""}
-                    onChange={(e) => setEdit({ ...edit, speaker_title: e.target.value })}
-                  />
-                </Field>
-                <Field label="Topic">
-                  <Input
-                    placeholder="What they'll be speaking about"
-                    value={edit.topic ?? ""}
-                    onChange={(e) => setEdit({ ...edit, topic: e.target.value })}
-                  />
-                </Field>
-                <Field label="Speaker bio">
-                  <Textarea
-                    rows={4}
-                    placeholder="A short introduction to the speaker..."
-                    value={edit.speaker_bio ?? ""}
-                    onChange={(e) => setEdit({ ...edit, speaker_bio: e.target.value })}
-                  />
-                </Field>
-              </FormSection>
-
-              <FormSection title="Date &amp; time">
-                <DateTimeField
-                  label="Meeting date and time"
-                  required
-                  dateValue={edit.meeting_date_date ?? ""}
-                  timeValue={edit.meeting_date_time ?? ""}
-                  onDate={(v) => setEdit({ ...edit, meeting_date_date: v })}
-                  onTime={(v) => setEdit({ ...edit, meeting_date_time: v })}
-                />
-              </FormSection>
-
-              <FormSection title="Visibility">
-                <ToggleRow label="Published" description="Shown on the breakfast booking page.">
-                  <Switch
-                    id="published"
-                    checked={edit.is_published ?? true}
-                    onCheckedChange={(v) => setEdit({ ...edit, is_published: v })}
-                  />
-                </ToggleRow>
-              </FormSection>
-            </ModalBody>
-          )}
+      <AdminModal
+        open={!!edit}
+        onOpenChange={(o) => !o && setEdit(null)}
+        eyebrow="Breakfast"
+        icon={Mic2}
+        title={edit?.id ? "Edit speaker" : "Add speaker"}
+        description="Appears on the breakfast booking page for everyone."
+        footer={
           <ModalFooter
             hint={
               edit?.id
@@ -329,30 +248,85 @@ function AdminBreakfastPage() {
             saving={save.isPending}
             saveLabel={edit?.id ? "Save changes" : "Add speaker"}
           />
-        </DialogContent>
-      </Dialog>
+        }
+      >
+        {edit && (
+          <ModalBody>
+            <FormSection title="Speaker">
+              <Panel className="flex justify-center">
+                <ImageUploader
+                  value={edit.speaker_image_url}
+                  onChange={(url) => setEdit({ ...edit, speaker_image_url: url })}
+                  folder="breakfast"
+                  shape="circle"
+                  label="Speaker photo"
+                />
+              </Panel>
+              <Field label="Speaker name">
+                <Input
+                  placeholder="e.g. Jane Dlamini"
+                  value={edit.speaker_name ?? ""}
+                  onChange={(e) => setEdit({ ...edit, speaker_name: e.target.value })}
+                />
+              </Field>
+              <Field label="Speaker title / role">
+                <Input
+                  placeholder="e.g. Founder of Acme Co."
+                  value={edit.speaker_title ?? ""}
+                  onChange={(e) => setEdit({ ...edit, speaker_title: e.target.value })}
+                />
+              </Field>
+              <Field label="Topic">
+                <Input
+                  placeholder="What they'll be speaking about"
+                  value={edit.topic ?? ""}
+                  onChange={(e) => setEdit({ ...edit, topic: e.target.value })}
+                />
+              </Field>
+              <Field label="Speaker bio">
+                <Textarea
+                  rows={4}
+                  placeholder="A short introduction to the speaker..."
+                  value={edit.speaker_bio ?? ""}
+                  onChange={(e) => setEdit({ ...edit, speaker_bio: e.target.value })}
+                />
+              </Field>
+            </FormSection>
 
-      <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this meeting?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will remove the speaker info from the booking page.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                if (deleting) del.mutate(deleting.id);
-              }}
-            >
-              {del.isPending ? <Loader2 className="size-4 animate-spin" /> : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            <FormSection title="Date &amp; time">
+              <DateTimeField
+                label="Meeting date and time"
+                required
+                dateValue={edit.meeting_date_date ?? ""}
+                timeValue={edit.meeting_date_time ?? ""}
+                onDate={(v) => setEdit({ ...edit, meeting_date_date: v })}
+                onTime={(v) => setEdit({ ...edit, meeting_date_time: v })}
+              />
+            </FormSection>
+
+            <FormSection title="Visibility">
+              <ToggleRow label="Published" description="Shown on the breakfast booking page.">
+                <Switch
+                  id="published"
+                  checked={edit.is_published ?? true}
+                  onCheckedChange={(v) => setEdit({ ...edit, is_published: v })}
+                />
+              </ToggleRow>
+            </FormSection>
+          </ModalBody>
+        )}
+      </AdminModal>
+
+      <ConfirmDialog
+        open={!!deleting}
+        onOpenChange={(o) => !o && setDeleting(null)}
+        icon={Trash2}
+        title="Delete this meeting?"
+        description="This will remove the speaker info from the booking page."
+        onConfirm={() => deleting && del.mutate(deleting.id)}
+        loading={del.isPending}
+        confirmLabel="Delete meeting"
+      />
     </div>
   );
 }

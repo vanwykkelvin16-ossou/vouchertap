@@ -1,6 +1,6 @@
 // Whitelisted access code gate. Stored in localStorage so the user does it once per device.
 // Also re-validated server-side inside the signup edge function.
-export const ACCESS_CODE = "000000";
+export const ACCESS_CODE = "SLK2026";
 export const ACCESS_KEY = "slk.access_granted_v1";
 
 export function hasAccess(): boolean {

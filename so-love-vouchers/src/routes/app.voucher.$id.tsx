@@ -2,8 +2,18 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { SmartImage } from "@/components/smart-image";
+import {
+  CountdownDisplay,
+  Perforation,
+  TicketBlock,
+  WindowBar,
+  serialOf,
+  urgencyOf,
+  urgencyText,
+  type ClaimStatus,
+} from "@/components/voucher-kit";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,10 +25,21 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Clock, Loader2, CheckCircle2, Store, MapPin, Phone } from "lucide-react";
-import { useCountdown, formatCountdown } from "@/hooks/use-countdown";
+import {
+  ArrowLeft,
+  Clock,
+  Loader2,
+  CheckCircle2,
+  Store,
+  MapPin,
+  Phone,
+  ShieldCheck,
+  TimerOff,
+} from "lucide-react";
+import { useCountdown } from "@/hooks/use-countdown";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/app/voucher/$id")({
   component: VoucherDetailPage,
@@ -43,6 +64,9 @@ type ClaimDetail = {
     image_url: string | null;
   } | null;
 };
+
+/** Hero band height — the punched notches sit exactly on its lower edge. */
+const HERO_H = 184;
 
 function VoucherDetailPage() {
   const { id } = Route.useParams();
@@ -106,246 +130,309 @@ function VoucherDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="grid place-items-center py-20">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      <div className="space-y-5">
+        <BackButton />
+        <TicketBlock notchY={`${HERO_H}px`}>
+          <div
+            className="animate-pulse rounded-t-3xl bg-foreground/[0.07]"
+            style={{ height: HERO_H }}
+          />
+          <Perforation />
+          <div className="space-y-3 p-6">
+            <div className="h-3 w-1/3 animate-pulse rounded-full bg-foreground/[0.06]" />
+            <div className="h-20 w-full animate-pulse rounded-2xl bg-foreground/[0.05]" />
+          </div>
+        </TicketBlock>
       </div>
     );
   }
 
   if (!claim) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-5">
         <BackButton />
-        <Card className="p-8 text-center border-dashed">
-          <p className="font-semibold">Voucher not found</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            It may have been removed or doesn't belong to your account.
+        <TicketBlock notchY="50%" className="mx-auto max-w-md">
+          <div className="px-8 pb-6 pt-10 text-center">
+            <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-muted text-muted-foreground">
+              <TimerOff className="size-7" />
+            </div>
+            <p className="mt-4 text-lg font-bold">Voucher not found</p>
+          </div>
+          <Perforation />
+          <p className="px-8 pb-10 pt-6 text-center text-sm text-muted-foreground">
+            It may have been removed, or it doesn't belong to your account.
           </p>
-        </Card>
+        </TicketBlock>
       </div>
     );
   }
 
-  const refRef = (claim?.id ?? "").slice(-4).toUpperCase();
+  const status: ClaimStatus = redeemed ? "redeemed" : expired ? "expired" : "active";
 
   return (
     <div className="space-y-5">
       <BackButton />
 
       <div
-        className={`relative select-none no-select transition-[filter] duration-300 ${
-          hidden ? "blur-2xl" : ""
-        }`}
+        className={cn(
+          "relative select-none no-select transition-[filter] duration-300",
+          hidden && "blur-2xl",
+        )}
         onContextMenu={(e) => e.preventDefault()}
       >
-        <Card className="overflow-hidden border-border shadow-xl">
-          {/* Header band with business logo */}
-          <div className="bg-primary text-primary-foreground px-6 py-5">
-            <div className="flex items-start gap-4">
-              <div className="size-14 rounded-full bg-primary-foreground/95 border-2 border-primary-foreground/30 shadow-md overflow-hidden grid place-items-center flex-shrink-0">
-                {claim.vouchers?.business_logo_url ? (
-                  <img
-                    src={claim.vouchers.business_logo_url}
-                    alt={claim.vouchers.business_name ?? ""}
-                    className="size-full object-cover"
-                  />
-                ) : (
-                  <Store className="size-6 text-primary" />
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] uppercase tracking-widest opacity-80">
-                  {claim.vouchers?.business_name ?? "So Love Krugersdorp"}
-                </p>
-                <h1 className="text-2xl font-bold leading-tight mt-0.5">{claim.vouchers?.title}</h1>
-                {claim.vouchers?.value_text && (
-                  <p className="text-xl font-bold mt-1 opacity-95">{claim.vouchers.value_text}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Body */}
-          <div className="p-6 space-y-5 relative">
-            {/* Perforated tear line between stub and body */}
-            <div
-              className="ticket-tear !mt-0"
-              style={{ "--tear-inset": "1.5rem" } as Record<string, string>}
-              aria-hidden="true"
-            />
-
-            <div className="flex items-center justify-between">
-              <p className="font-serial text-[11px] text-muted-foreground">
-                Nº SLK-{(claim.id ?? "").slice(0, 4).toUpperCase()}-{refRef}
-              </p>
-              <p className="font-serial text-[11px] text-muted-foreground">
-                {new Date(claim.claimed_at).toLocaleDateString("en-ZA", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </p>
-            </div>
-
-            {claim.vouchers?.description && (
-              <p className="text-sm text-foreground/80 relative">{claim.vouchers.description}</p>
-            )}
-
-            {/* Status (active / expired only) */}
-            {!redeemed && (
-              <div className="relative rounded-xl border border-dashed border-border bg-muted/40 px-4 py-4 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-[0.18em] font-semibold inline-flex items-center gap-1.5 justify-center">
-                  <Clock className="size-3.5 text-primary" />
-                  {expired ? "Expired" : "Expires in"}
-                </p>
-                <p className="font-serial text-3xl font-bold mt-1.5 text-foreground">
-                  {formatCountdown(cd)}
-                </p>
-              </div>
-            )}
-
-            {redeemed && (
-              <div className="relative space-y-4">
-                {/* Rubber stamp */}
-                <div className="flex justify-center py-2">
-                  <span className="slk-stamp animate-stamp text-primary text-xl md:text-2xl">
-                    Redeemed
-                  </span>
-                </div>
-
-                {/* Redeemed banner */}
-                <div className="rounded-2xl border border-emerald-600/30 bg-emerald-50 dark:bg-emerald-950/30 px-5 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="size-10 rounded-full bg-emerald-600 text-white grid place-items-center flex-shrink-0">
-                      <CheckCircle2 className="size-5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[10px] uppercase tracking-[0.18em] font-semibold text-emerald-700 dark:text-emerald-400">
-                        Voucher redeemed
-                      </p>
-                      <p className="text-sm font-semibold text-foreground mt-0.5 truncate">
-                        Thanks for visiting
-                        {claim.vouchers?.business_name ? ` ${claim.vouchers.business_name}` : ""}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Redemption details */}
-                <div className="rounded-2xl border border-border bg-card divide-y divide-border overflow-hidden">
-                  <DetailRow
-                    label="Used on"
-                    value={new Date(claim.redeemed_at!).toLocaleDateString("en-ZA", {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  />
-                  <DetailRow
-                    label="Used at"
-                    value={new Date(claim.redeemed_at!).toLocaleTimeString("en-ZA", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  />
-                  {claim.vouchers?.business_name && (
-                    <DetailRow label="Business" value={claim.vouchers.business_name} />
-                  )}
-                  <DetailRow label="Reference" value={refRef} mono />
-                </div>
-              </div>
-            )}
-
-            {(claim.vouchers?.business_address || claim.vouchers?.business_phone) && (
-              <div className="relative pt-3 border-t border-dashed space-y-2.5">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
-                  Where to redeem
-                </p>
-                {claim.vouchers?.business_name && (
-                  <div className="flex items-center gap-2.5">
-                    <span className="grid place-items-center size-7 rounded-lg bg-primary/10 text-primary shrink-0">
-                      <Store className="size-3.5" />
-                    </span>
-                    <span className="text-sm font-medium">{claim.vouchers.business_name}</span>
-                  </div>
-                )}
-                {claim.vouchers?.business_address && (
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                      claim.vouchers.business_address,
-                    )}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-2.5 group"
-                  >
-                    <span className="grid place-items-center size-7 rounded-lg bg-primary/10 text-primary shrink-0">
-                      <MapPin className="size-3.5" />
-                    </span>
-                    <span className="text-sm font-medium group-hover:text-primary group-hover:underline">
-                      {claim.vouchers.business_address}
-                    </span>
-                  </a>
-                )}
-                {claim.vouchers?.business_phone && (
-                  <a
-                    href={`tel:${claim.vouchers.business_phone.replace(/\s+/g, "")}`}
-                    className="flex items-center gap-2.5 group"
-                  >
-                    <span className="grid place-items-center size-7 rounded-lg bg-primary/10 text-primary shrink-0">
-                      <Phone className="size-3.5" />
-                    </span>
-                    <span className="text-sm font-medium tabular-nums group-hover:text-primary group-hover:underline">
-                      {claim.vouchers.business_phone}
-                    </span>
-                  </a>
-                )}
-              </div>
-            )}
-
-            {claim.vouchers?.terms && (
-              <div className="relative pt-3 border-t border-dashed">
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  <span className="font-semibold text-foreground">Terms: </span>
-                  {claim.vouchers.terms}
-                </p>
-              </div>
-            )}
-          </div>
-        </Card>
+        <VoucherFace claim={claim} status={status} />
       </div>
 
-      {/* Redeem CTA */}
+      {/* Redeem CTA — pinned above the mobile nav while the ticket scrolls. */}
       {active && (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button size="lg" className="w-full h-14 text-base font-bold">
-              Redeem now
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Redeem in front of staff?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Only tap "Confirm" when a staff member is present. This will mark the voucher as
-                used and cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={(e) => {
-                  e.preventDefault();
-                  redeem.mutate();
-                }}
-                disabled={redeem.isPending}
+        <div className="sticky bottom-24 z-30 md:bottom-6">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                size="lg"
+                className="h-14 w-full rounded-full text-base font-bold shadow-xl shadow-primary/25 transition-transform active:scale-[0.99]"
               >
-                {redeem.isPending ? <Loader2 className="size-4 animate-spin" /> : "Confirm redeem"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+                <ShieldCheck className="size-5" />
+                Redeem now
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Redeem in front of staff?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Only tap "Confirm" when a staff member is present. This will mark the voucher as
+                  used and cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={(e) => {
+                    e.preventDefault();
+                    redeem.mutate();
+                  }}
+                  disabled={redeem.isPending}
+                >
+                  {redeem.isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    "Confirm redeem"
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <p className="mt-2 text-center text-[11px] text-muted-foreground">
+            Staff must watch you tap redeem.
+          </p>
+        </div>
       )}
     </div>
+  );
+}
+
+/**
+ * The voucher itself: hero band, punched perforation, then the stub carrying
+ * the live window / expiry notice / redeemed receipt.
+ */
+function VoucherFace({ claim, status }: { claim: ClaimDetail; status: ClaimStatus }) {
+  const v = claim.vouchers;
+  const ref = claim.id.slice(-4).toUpperCase();
+  const cd = useCountdown(claim.expires_at);
+  const level = urgencyOf(cd.totalSec);
+
+  return (
+    <TicketBlock notchY={`${HERO_H}px`}>
+      {/* Hero band: artwork when there is one, brand gradient otherwise. */}
+      <div className="relative overflow-hidden rounded-t-3xl bg-primary" style={{ height: HERO_H }}>
+        {v?.image_url ? (
+          <SmartImage src={v.image_url} alt="" wrapperClassName="absolute inset-0" />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-primary/70" />
+        )}
+        <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.82),rgba(0,0,0,0.35)_45%,rgba(0,0,0,0.05)_100%)]" />
+
+        {v?.value_text && (
+          <span className="absolute right-5 top-5 rounded-full bg-white px-3 py-1 text-[13px] font-bold text-neutral-900 shadow-lg">
+            {v.value_text}
+          </span>
+        )}
+
+        <div className="absolute inset-x-5 bottom-5">
+          <div className="flex items-center gap-2.5">
+            <div className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-white ring-2 ring-white/70">
+              {v?.business_logo_url ? (
+                <img src={v.business_logo_url} alt="" className="size-full object-cover" />
+              ) : (
+                <Store className="size-4 text-primary" />
+              )}
+            </div>
+            <p className="truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-white/90">
+              {v?.business_name ?? "So Love Krugersdorp"}
+            </p>
+          </div>
+          <h1 className="mt-2 text-2xl font-bold leading-tight tracking-tight text-white drop-shadow">
+            {v?.title}
+          </h1>
+        </div>
+      </div>
+
+      <Perforation />
+
+      <div className="space-y-5 p-6">
+        <div className="flex items-center justify-between gap-3">
+          <p className="font-serial text-[11px] text-muted-foreground">
+            Nº {serialOf(claim.id, ref)}
+          </p>
+          <p className="font-serial text-[11px] text-muted-foreground">
+            {new Date(claim.claimed_at).toLocaleDateString("en-ZA", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })}
+          </p>
+        </div>
+
+        {v?.description && (
+          <p className="text-sm leading-relaxed text-foreground/80">{v.description}</p>
+        )}
+
+        {status === "active" && (
+          <div className="rounded-2xl border border-border bg-muted/30 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                <Clock className={cn("size-3.5", urgencyText[level])} />
+                Expires in
+              </p>
+              <p className={cn("text-[11px] font-semibold", urgencyText[level])}>
+                {level === "urgent"
+                  ? "Last hour"
+                  : level === "soon"
+                    ? "Closing soon"
+                    : "Plenty of time"}
+              </p>
+            </div>
+            <CountdownDisplay expiresAt={claim.expires_at} />
+            <WindowBar claimedAt={claim.claimed_at} expiresAt={claim.expires_at} className="mt-3" />
+          </div>
+        )}
+
+        {status === "expired" && (
+          <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/40 px-4 py-3.5">
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+              <TimerOff className="size-4" />
+            </span>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Window closed
+              </p>
+              <p className="mt-0.5 text-sm font-semibold">
+                This voucher expired and can no longer be redeemed.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {status === "redeemed" && (
+          <div className="space-y-4">
+            <div className="flex justify-center py-1">
+              <span className="slk-stamp animate-stamp text-xl text-primary md:text-2xl">
+                Redeemed
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3 rounded-2xl border border-emerald-600/25 bg-emerald-50 px-4 py-3.5 dark:bg-emerald-950/30">
+              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-emerald-600 text-white">
+                <CheckCircle2 className="size-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-400">
+                  Voucher redeemed
+                </p>
+                <p className="mt-0.5 truncate text-sm font-semibold">
+                  Thanks for visiting{v?.business_name ? ` ${v.business_name}` : ""}
+                </p>
+              </div>
+            </div>
+
+            <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border">
+              <DetailRow
+                label="Used on"
+                value={new Date(claim.redeemed_at!).toLocaleDateString("en-ZA", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
+              />
+              <DetailRow
+                label="Used at"
+                value={new Date(claim.redeemed_at!).toLocaleTimeString("en-ZA", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              />
+              {v?.business_name && <DetailRow label="Business" value={v.business_name} />}
+              <DetailRow label="Reference" value={ref} mono />
+            </div>
+          </div>
+        )}
+
+        {(v?.business_address || v?.business_phone) && (
+          <div className="space-y-2.5 border-t border-dashed pt-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Where to redeem
+            </p>
+            {v?.business_name && (
+              <div className="flex items-center gap-2.5">
+                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                  <Store className="size-3.5" />
+                </span>
+                <span className="text-sm font-medium">{v.business_name}</span>
+              </div>
+            )}
+            {v?.business_address && (
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                  v.business_address,
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                className="group flex items-center gap-2.5"
+              >
+                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                  <MapPin className="size-3.5" />
+                </span>
+                <span className="text-sm font-medium group-hover:text-primary group-hover:underline">
+                  {v.business_address}
+                </span>
+              </a>
+            )}
+            {v?.business_phone && (
+              <a
+                href={`tel:${v.business_phone.replace(/\s+/g, "")}`}
+                className="group flex items-center gap-2.5"
+              >
+                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                  <Phone className="size-3.5" />
+                </span>
+                <span className="text-sm font-medium tabular-nums group-hover:text-primary group-hover:underline">
+                  {v.business_phone}
+                </span>
+              </a>
+            )}
+          </div>
+        )}
+
+        {v?.terms && (
+          <div className="border-t border-dashed pt-4">
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              <span className="font-semibold text-foreground">Terms: </span>
+              {v.terms}
+            </p>
+          </div>
+        )}
+      </div>
+    </TicketBlock>
   );
 }
 
@@ -353,9 +440,9 @@ function BackButton() {
   return (
     <Link
       to="/app/my-vouchers"
-      className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
     >
-      <ArrowLeft className="size-4" /> Back
+      <ArrowLeft className="size-3.5" /> Back
     </Link>
   );
 }
@@ -363,12 +450,10 @@ function BackButton() {
 function DetailRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex items-center justify-between px-4 py-3">
-      <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
         {label}
       </span>
-      <span
-        className={`text-sm font-semibold text-foreground ${mono ? "font-mono tracking-wider" : ""}`}
-      >
+      <span className={cn("text-sm font-semibold", mono && "font-mono tracking-wider")}>
         {value}
       </span>
     </div>

@@ -2,9 +2,9 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { SmartImage } from "@/components/smart-image";
+import { Perforation, TicketBlock, TicketSkeleton, serialOf } from "@/components/voucher-kit";
 import {
   TicketPercent,
   Loader2,
@@ -129,35 +129,19 @@ function VouchersPage() {
   });
 
   return (
-    <div className="space-y-8">
-      <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 border-b border-border pb-6">
-        <div>
-          <p className="text-xs uppercase tracking-widest text-primary font-semibold">
-            Members only
-          </p>
-          <h1 className="text-3xl md:text-5xl font-bold mt-2 tracking-tight">Vouchers</h1>
-          <p className="text-sm md:text-base text-muted-foreground mt-2 max-w-xl">
-            Tap to claim. Each voucher is one-per-member and tied to your account.
-          </p>
-        </div>
-        <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
-          <Sparkles className="size-4 text-primary" />
-          {data?.length ?? 0} available
-        </div>
-      </header>
+    <div className="space-y-7">
+      <PageHeader count={data?.length ?? 0} loading={isLoading} />
 
       {isLoading ? (
-        <div className="py-10 grid place-items-center">
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
-        </div>
+        <ul className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <li key={i}>
+              <TicketSkeleton />
+            </li>
+          ))}
+        </ul>
       ) : !data || data.length === 0 ? (
-        <Card className="p-8 text-center border-dashed">
-          <TicketPercent className="size-8 mx-auto text-muted-foreground" />
-          <p className="font-semibold mt-3">No vouchers available</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            New vouchers drop regularly - check back soon.
-          </p>
-        </Card>
+        <EmptyState />
       ) : (
         <ul className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {data.map((v, i) => (
@@ -166,107 +150,18 @@ function VouchersPage() {
               className="animate-rise"
               style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}
             >
-              <Card className="group relative overflow-hidden rounded-2xl border-border/60 shadow-lg shadow-black/[0.04] ring-1 ring-black/[0.02] hover:shadow-xl hover:shadow-black/[0.08] hover:-translate-y-1 hover:border-primary/40 transition-all duration-300 ease-out h-full flex flex-col">
-                {/* Cover with overlay */}
-                <div className="relative h-48 bg-gradient-to-br from-primary/15 via-primary/5 to-muted overflow-hidden">
-                  {v.image_url ? (
-                    <img
-                      src={v.image_url}
-                      alt=""
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="size-full grid place-items-center">
-                      <TicketPercent className="size-12 text-primary/30" />
-                    </div>
-                  )}
-
-                  {/* Dark gradient for text legibility */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
-
-                  <div className="absolute top-3 inset-x-3 flex items-start justify-between gap-2">
-                    {v.is_recurring ? (
-                      <Badge className="bg-white/95 text-foreground shadow-md font-semibold gap-1">
-                        <Repeat className="size-3 text-primary" />
-                        Monthly
-                      </Badge>
-                    ) : (
-                      <span />
-                    )}
-                    {v.value_text && (
-                      <Badge className="bg-primary text-primary-foreground shadow-md font-bold">
-                        <Sparkles className="size-3 mr-1" />
-                        {v.value_text}
-                      </Badge>
-                    )}
-                  </div>
-
-                  {/* Logo + business name overlay inside the image */}
-                  <div className="absolute inset-x-0 bottom-0 p-4 flex items-center gap-3">
-                    <div className="size-12 rounded-full bg-white ring-2 ring-white shadow-md flex-shrink-0 overflow-hidden">
-                      {v.business_logo_url ? (
-                        <img
-                          src={v.business_logo_url}
-                          alt={v.business_name ?? ""}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full grid place-items-center">
-                          <Store className="size-6 text-muted-foreground" />
-                        </div>
-                      )}
-                    </div>
-
-                    {v.business_name && (
-                      <p className="text-sm font-semibold text-white drop-shadow-md tracking-wide truncate">
-                        {v.business_name}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Body */}
-                <div className="px-5 pt-5 pb-5 flex-1 flex flex-col">
-                  <div className="flex-1">
-                    <h2 className="text-lg font-bold leading-tight">{v.title}</h2>
-                    {v.description && (
-                      <p className="text-sm text-muted-foreground mt-2 line-clamp-2 leading-relaxed">
-                        {v.description}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Perforated tear line */}
-                  <div className="ticket-tear mt-4 mb-4" aria-hidden="true" />
-
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                        <Clock className="size-3.5" />
-                        {v.claim_window_hours}h to redeem
-                      </span>
-                      <p className="font-serial text-[10px] text-muted-foreground/70 mt-1">
-                        Nº SLK-{v.id.slice(0, 4).toUpperCase()}
-                      </p>
-                    </div>
-                    <Button
-                      className="font-semibold gap-2 px-5 py-2.5 h-auto rounded-full shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200"
-                      onClick={() =>
-                        setConfirming({
-                          id: v.id,
-                          title: v.title,
-                          hours: v.claim_window_hours,
-                          terms: v.terms,
-                          recurring: v.is_recurring,
-                        })
-                      }
-                    >
-                      <Sparkles className="size-4" />
-                      Claim
-                    </Button>
-                  </div>
-                </div>
-              </Card>
+              <VoucherTicket
+                voucher={v}
+                onClaim={() =>
+                  setConfirming({
+                    id: v.id,
+                    title: v.title,
+                    hours: v.claim_window_hours,
+                    terms: v.terms,
+                    recurring: v.is_recurring,
+                  })
+                }
+              />
             </li>
           ))}
         </ul>
@@ -285,7 +180,7 @@ function VouchersPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           {confirming?.terms && (
-            <Collapsible className="border border-border rounded-lg overflow-hidden">
+            <Collapsible className="border border-border rounded-xl overflow-hidden">
               <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-sm font-semibold hover:bg-muted/50 transition-colors [&[data-state=open]>svg:last-child]:rotate-180">
                 <span className="inline-flex items-center gap-2">
                   <FileText className="size-4 text-primary" />
@@ -313,5 +208,133 @@ function VouchersPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+function PageHeader({ count, loading }: { count: number; loading: boolean }) {
+  return (
+    <header className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+      <div>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
+          <Sparkles className="size-3" />
+          Members only
+        </span>
+        <h1 className="mt-3 text-3xl font-bold tracking-tight md:text-[2.75rem] md:leading-[1.05]">
+          Vouchers
+        </h1>
+        <p className="mt-2 max-w-md text-sm text-muted-foreground md:text-base">
+          Claim one, then redeem it in store before the window closes.
+        </p>
+      </div>
+      <div className="flex items-center gap-2 self-start rounded-full border border-border bg-card px-3.5 py-2 text-xs font-semibold md:self-auto">
+        <TicketPercent className="size-4 text-primary" />
+        {loading ? "Loading…" : `${count} available`}
+      </div>
+    </header>
+  );
+}
+
+function EmptyState() {
+  return (
+    <TicketBlock notchY="50%" className="mx-auto max-w-md">
+      <div className="px-8 pb-6 pt-10 text-center">
+        <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-primary/10 text-primary">
+          <TicketPercent className="size-7" />
+        </div>
+        <p className="mt-4 text-lg font-bold">No vouchers right now</p>
+      </div>
+      <Perforation />
+      <p className="px-8 pb-10 pt-6 text-center text-sm text-muted-foreground">
+        New drops land regularly — check back soon, or look under Mine for the ones you've already
+        claimed.
+      </p>
+    </TicketBlock>
+  );
+}
+
+function VoucherTicket({ voucher: v, onClaim }: { voucher: Voucher; onClaim: () => void }) {
+  return (
+    // The footer is a fixed 76px (44px button + 2×16px padding), so the punched
+    // notches and the perforation always meet on the same line.
+    <TicketBlock notchY="calc(100% - 76px)">
+      <div className="relative overflow-hidden rounded-t-3xl">
+        <SmartImage
+          src={v.image_url}
+          alt={v.title}
+          wrapperClassName="aspect-[4/3]"
+          className="transition-transform duration-500 group-hover:scale-[1.04]"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.78),rgba(0,0,0,0.25)_32%,rgba(0,0,0,0)_62%)]" />
+
+        <div className="absolute inset-x-4 top-4 flex items-start justify-between gap-2">
+          {v.is_recurring ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-neutral-900 shadow-sm backdrop-blur">
+              <Repeat className="size-3 text-primary" />
+              Monthly
+            </span>
+          ) : (
+            <span />
+          )}
+          {v.value_text && (
+            <span className="rounded-full bg-primary px-3 py-1 text-[13px] font-bold text-primary-foreground shadow-lg shadow-black/20">
+              {v.value_text}
+            </span>
+          )}
+        </div>
+
+        <div className="absolute inset-x-4 bottom-4 flex items-center gap-2.5">
+          <div className="size-9 shrink-0 overflow-hidden rounded-full bg-white ring-2 ring-white/80">
+            {v.business_logo_url ? (
+              <img
+                src={v.business_logo_url}
+                alt=""
+                className="size-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div className="grid size-full place-items-center">
+                <Store className="size-4 text-neutral-500" />
+              </div>
+            )}
+          </div>
+          {v.business_name && (
+            <p className="truncate text-sm font-semibold tracking-tight text-white drop-shadow">
+              {v.business_name}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-1 flex-col p-5">
+        <h2 className="text-lg font-bold leading-snug tracking-tight">{v.title}</h2>
+        {v.description && (
+          <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+            {v.description}
+          </p>
+        )}
+
+        <div className="mt-auto flex items-center justify-between gap-3 pt-4">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-foreground/[0.05] px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+            <Clock className="size-3" />
+            {v.claim_window_hours}h to redeem
+          </span>
+          <span className="font-serial text-[10px] text-muted-foreground/70">
+            Nº {serialOf(v.id)}
+          </span>
+        </div>
+      </div>
+
+      <Perforation />
+
+      <div className="p-4">
+        <Button
+          className="h-11 w-full rounded-full text-sm font-semibold shadow-sm transition-transform active:scale-[0.99]"
+          onClick={onClaim}
+        >
+          <Sparkles className="size-4" />
+          Claim voucher
+        </Button>
+      </div>
+    </TicketBlock>
   );
 }

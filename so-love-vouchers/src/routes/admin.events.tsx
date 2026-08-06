@@ -9,33 +9,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
+  AdminModal,
   ModalBody,
   FormSection,
   Field,
   DateTimeField,
   ToggleRow,
   ModalFooter,
+  ConfirmDialog,
+  InfoNote,
 } from "@/components/admin/form-kit";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { ImageUploader } from "@/components/image-uploader";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime";
-import { Plus, Pencil, Trash2, Loader2, MapPin, CalendarDays } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, MapPin, CalendarDays, Bell } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { broadcastPush } from "@/lib/push.functions";
@@ -52,6 +38,7 @@ type EventRow = {
   starts_at: string;
   ends_at: string | null;
   image_url: string | null;
+  form_url: string | null;
   is_published: boolean;
 };
 
@@ -71,6 +58,7 @@ const empty: EditState = {
   starts_at: "",
   ends_at: "",
   image_url: null,
+  form_url: "",
   is_published: true,
   starts_date: "",
   starts_time: "",
@@ -91,6 +79,18 @@ function toLocalInput(iso: string | null | undefined) {
 function combineDatetime(date: string, time: string): string {
   if (!date) return "";
   return `${date}T${time || "00:00"}`;
+}
+
+/** Tidy a pasted form link: blank stays null, a bare domain gets https://. */
+function normaliseFormUrl(raw: string | null | undefined): string | null {
+  const value = (raw ?? "").trim();
+  if (!value) return null;
+  const withProtocol = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+  try {
+    return new URL(withProtocol).toString();
+  } catch {
+    throw new Error("The form link isn't a valid URL");
+  }
 }
 
 function AdminEventsPage() {
@@ -125,6 +125,7 @@ function AdminEventsPage() {
         starts_at: new Date(startsAt).toISOString(),
         ends_at: endsAt ? new Date(endsAt).toISOString() : null,
         image_url: e.image_url ?? null,
+        form_url: normaliseFormUrl(e.form_url),
         is_published: e.is_published ?? true,
       };
       const isNew = !e.id;
@@ -188,12 +189,12 @@ function AdminEventsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-end justify-between gap-4">
+      <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-widest text-primary font-semibold">Admin</p>
           <h1 className="text-3xl font-bold mt-1">Events</h1>
         </div>
-        <Button onClick={() => setEdit(empty)}>
+        <Button onClick={() => setEdit(empty)} className="rounded-full px-5 shadow-sm">
           <Plus className="size-4 mr-1.5" /> New event
         </Button>
       </header>
@@ -203,22 +204,25 @@ function AdminEventsPage() {
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
       ) : !data || data.length === 0 ? (
-        <Card className="p-8 text-center border-dashed">
+        <Card className="p-10 text-center border-dashed bg-muted/25 rounded-2xl">
+          <div className="size-12 mx-auto rounded-2xl bg-primary/10 text-primary grid place-items-center mb-3">
+            <CalendarDays className="size-6" />
+          </div>
           <p className="font-semibold">No events yet</p>
           <p className="text-sm text-muted-foreground mt-1">
             Create your first event to show it in the app.
           </p>
         </Card>
       ) : (
-        <ul className="grid gap-3">
+        <ul className="grid gap-2.5">
           {data.map((ev) => (
             <li key={ev.id}>
-              <Card className="p-4 flex items-center gap-4">
-                <div className="size-16 rounded-md bg-muted overflow-hidden flex-shrink-0">
+              <Card className="group p-3.5 flex items-center gap-4 rounded-2xl border-border/70 shadow-sm transition-all hover:border-border hover:shadow-md">
+                <div className="size-16 rounded-xl bg-muted overflow-hidden flex-shrink-0 ring-1 ring-border/50">
                   {ev.image_url ? (
                     <img src={ev.image_url} alt="" className="size-full object-cover" />
                   ) : (
-                    <div className="size-full grid place-items-center text-muted-foreground">
+                    <div className="size-full grid place-items-center text-muted-foreground/50">
                       <CalendarDays className="size-5" />
                     </div>
                   )}
@@ -227,28 +231,30 @@ function AdminEventsPage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-bold truncate">{ev.title}</h3>
                     {!ev.is_published && (
-                      <Badge variant="secondary" className="text-[10px]">
+                      <Badge variant="secondary" className="text-[10px] rounded-full">
                         Hidden
                       </Badge>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-3">
-                    <span className="inline-flex items-center gap-1">
+                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-3 flex-wrap">
+                    <span className="inline-flex items-center gap-1.5">
                       <CalendarDays className="size-3" />
                       {new Date(ev.starts_at).toLocaleString()}
                     </span>
                     {ev.location && (
-                      <span className="inline-flex items-center gap-1 truncate">
+                      <span className="inline-flex items-center gap-1.5 truncate">
                         <MapPin className="size-3" />
                         {ev.location}
                       </span>
                     )}
                   </p>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-1 shrink-0">
                   <Button
                     size="icon"
                     variant="ghost"
+                    className="rounded-full"
+                    aria-label={`Edit ${ev.title}`}
                     onClick={() => {
                       const s = toLocalInput(ev.starts_at);
                       const en = toLocalInput(ev.ends_at);
@@ -267,7 +273,8 @@ function AdminEventsPage() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="text-destructive"
+                    className="rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    aria-label={`Delete ${ev.title}`}
                     onClick={() => setDeleting(ev)}
                   >
                     <Trash2 className="size-4" />
@@ -279,85 +286,14 @@ function AdminEventsPage() {
         </ul>
       )}
 
-      <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)}>
-        <DialogContent className="max-w-lg sm:max-w-2xl max-h-[92vh] flex flex-col gap-0 p-0 overflow-hidden rounded-3xl border-0 shadow-2xl shadow-black/20">
-          <DialogHeader className="px-6 md:px-8 py-5 border-b border-border/60 bg-background/85 backdrop-blur-xl shrink-0 text-left">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-primary font-semibold">
-              Events
-            </p>
-            <DialogTitle
-              className="text-2xl tracking-tight"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              {edit?.id ? "Edit event" : "New event"}
-            </DialogTitle>
-            <DialogDescription>Changes appear in the app instantly for everyone.</DialogDescription>
-          </DialogHeader>
-          {edit && (
-            <ModalBody>
-              <FormSection title="Details">
-                <ImageUploader
-                  value={edit.image_url}
-                  onChange={(url) => setEdit({ ...edit, image_url: url })}
-                  folder="events"
-                />
-                <Field label="Title" required>
-                  <Input
-                    placeholder="e.g. Year-end celebration"
-                    value={edit.title ?? ""}
-                    onChange={(e) => setEdit({ ...edit, title: e.target.value })}
-                  />
-                </Field>
-                <Field label="Description">
-                  <Textarea
-                    rows={3}
-                    placeholder="What's happening, who it's for, what to expect..."
-                    value={edit.description ?? ""}
-                    onChange={(e) => setEdit({ ...edit, description: e.target.value })}
-                  />
-                </Field>
-                <Field label="Location">
-                  <Input
-                    placeholder="e.g. Bella Vista Wedding Venue"
-                    value={edit.location ?? ""}
-                    onChange={(e) => setEdit({ ...edit, location: e.target.value })}
-                  />
-                </Field>
-              </FormSection>
-
-              <FormSection title="Date &amp; time">
-                <DateTimeField
-                  label="Starts at"
-                  required
-                  dateValue={edit.starts_date ?? ""}
-                  timeValue={edit.starts_time ?? ""}
-                  onDate={(v) => setEdit({ ...edit, starts_date: v })}
-                  onTime={(v) => setEdit({ ...edit, starts_time: v })}
-                />
-                <DateTimeField
-                  label="Ends at"
-                  dateValue={edit.ends_date ?? ""}
-                  timeValue={edit.ends_time ?? ""}
-                  onDate={(v) => setEdit({ ...edit, ends_date: v })}
-                  onTime={(v) => setEdit({ ...edit, ends_time: v })}
-                />
-              </FormSection>
-
-              <FormSection title="Visibility">
-                <ToggleRow label="Published" description="Visible to all members in the app.">
-                  <Switch
-                    id="published"
-                    checked={edit.is_published ?? true}
-                    onCheckedChange={(v) => setEdit({ ...edit, is_published: v })}
-                  />
-                </ToggleRow>
-                <p className="text-[11px] text-muted-foreground italic">
-                  A push notification is sent automatically to all opted-in members when you create
-                  a new published event.
-                </p>
-              </FormSection>
-            </ModalBody>
-          )}
+      <AdminModal
+        open={!!edit}
+        onOpenChange={(o) => !o && setEdit(null)}
+        eyebrow="Events"
+        icon={CalendarDays}
+        title={edit?.id ? "Edit event" : "New event"}
+        description="Changes appear in the app instantly for everyone."
+        footer={
           <ModalFooter
             hint={
               edit?.id
@@ -369,30 +305,112 @@ function AdminEventsPage() {
             saving={save.isPending}
             saveLabel={edit?.id ? "Save changes" : "Publish event"}
           />
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this event?</AlertDialogTitle>
-            <AlertDialogDescription>
-              "{deleting?.title}" will be removed from all client apps immediately.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                if (deleting) del.mutate(deleting.id);
-              }}
+        }
+      >
+        {edit && (
+          <ModalBody>
+            <FormSection
+              title="Cover image"
+              description="Shown at the top of the event in the member app. The whole image is kept — nothing is cropped."
             >
-              {del.isPending ? <Loader2 className="size-4 animate-spin" /> : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              <ImageUploader
+                value={edit.image_url}
+                onChange={(url) => setEdit({ ...edit, image_url: url })}
+                folder="events"
+                aspect="16 / 9"
+                label="Add a cover image"
+                hint="Landscape works best. JPG, PNG or WebP up to 5MB."
+              />
+            </FormSection>
+
+            <FormSection title="Details">
+              <Field label="Title" required>
+                <Input
+                  placeholder="e.g. Year-end celebration"
+                  value={edit.title ?? ""}
+                  onChange={(e) => setEdit({ ...edit, title: e.target.value })}
+                />
+              </Field>
+              <Field label="Description">
+                <Textarea
+                  rows={3}
+                  placeholder="What's happening, who it's for, what to expect..."
+                  value={edit.description ?? ""}
+                  onChange={(e) => setEdit({ ...edit, description: e.target.value })}
+                />
+              </Field>
+              <Field label="Location">
+                <Input
+                  placeholder="e.g. Bella Vista Wedding Venue"
+                  value={edit.location ?? ""}
+                  onChange={(e) => setEdit({ ...edit, location: e.target.value })}
+                />
+              </Field>
+              <Field
+                label="Registration form link"
+                hint="Paste a Jotform (or any form) link. Members see a Register button on the event — leave it empty and no button shows."
+              >
+                <Input
+                  type="url"
+                  inputMode="url"
+                  placeholder="https://form.jotform.com/..."
+                  value={edit.form_url ?? ""}
+                  onChange={(e) => setEdit({ ...edit, form_url: e.target.value })}
+                />
+              </Field>
+            </FormSection>
+
+            <FormSection title="Date &amp; time">
+              <DateTimeField
+                label="Starts at"
+                required
+                dateValue={edit.starts_date ?? ""}
+                timeValue={edit.starts_time ?? ""}
+                onDate={(v) => setEdit({ ...edit, starts_date: v })}
+                onTime={(v) => setEdit({ ...edit, starts_time: v })}
+              />
+              <DateTimeField
+                label="Ends at"
+                hint="Optional — leave blank for an open-ended event."
+                dateValue={edit.ends_date ?? ""}
+                timeValue={edit.ends_time ?? ""}
+                onDate={(v) => setEdit({ ...edit, ends_date: v })}
+                onTime={(v) => setEdit({ ...edit, ends_time: v })}
+              />
+            </FormSection>
+
+            <FormSection title="Visibility">
+              <ToggleRow label="Published" description="Visible to all members in the app.">
+                <Switch
+                  id="published"
+                  checked={edit.is_published ?? true}
+                  onCheckedChange={(v) => setEdit({ ...edit, is_published: v })}
+                />
+              </ToggleRow>
+              <InfoNote icon={Bell}>
+                Creating a new published event sends a push notification to every opted-in member
+                automatically.
+              </InfoNote>
+            </FormSection>
+          </ModalBody>
+        )}
+      </AdminModal>
+
+      <ConfirmDialog
+        open={!!deleting}
+        onOpenChange={(o) => !o && setDeleting(null)}
+        icon={Trash2}
+        title="Delete this event?"
+        description={
+          <>
+            <span className="font-medium text-foreground">{deleting?.title}</span> will be removed
+            from every member's app immediately. This can't be undone.
+          </>
+        }
+        onConfirm={() => deleting && del.mutate(deleting.id)}
+        loading={del.isPending}
+        confirmLabel="Delete event"
+      />
     </div>
   );
 }

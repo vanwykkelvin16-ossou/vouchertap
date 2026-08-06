@@ -3,11 +3,12 @@ import { useEffect, useState } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { ImageUploader } from "@/components/image-uploader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { ACCESS_CODE, hasAccess, grantAccess } from "@/lib/access-code";
+import { hasAccess } from "@/lib/access-code";
 import { isMissingColumnError } from "@/hooks/use-profile";
 import { toast } from "sonner";
 import { Loader2, ArrowRight, Building2, Sparkles } from "lucide-react";
@@ -19,7 +20,13 @@ const step1Schema = z.object({
   email: z.string().trim().email("Enter a valid email"),
   phone: z.string().trim().min(6, "Enter your phone number"),
   password: z.string().min(6, "Password: at least 6 characters"),
-  accessCode: z.string().trim().min(1, "Access code is required"),
+});
+
+const step2Schema = z.object({
+  businessName: z.string().trim().min(1, "Enter your company name"),
+  businessEmail: z.string().trim().email("Enter a valid business email"),
+  workPhone: z.string().trim().min(6, "Enter your business phone number"),
+  website: z.string().trim().optional(),
 });
 
 export const Route = createFileRoute("/signup")({
@@ -79,9 +86,8 @@ function SignupPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [accessCode, setAccessCode] = useState("");
 
-  // Step 2 — business (optional)
+  // Step 2 — business (required)
   const [businessName, setBusinessName] = useState("");
   const [businessEmail, setBusinessEmail] = useState("");
   const [workPhone, setWorkPhone] = useState("");
@@ -104,17 +110,11 @@ function SignupPage() {
       email,
       phone,
       password,
-      accessCode,
     });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0].message);
       return;
     }
-    if (parsed.data.accessCode.toUpperCase() !== ACCESS_CODE) {
-      toast.error("Invalid access code");
-      return;
-    }
-    grantAccess(parsed.data.accessCode);
     setStarted(true);
     setSubmitting(true);
     const redirectUrl = `${window.location.origin}/app/events`;
@@ -159,26 +159,33 @@ function SignupPage() {
     navigate({ to: "/login" });
   }
 
-  async function finish(saveBusiness: boolean) {
+  async function finish(e: React.FormEvent) {
+    e.preventDefault();
     if (!user?.id) return;
+    const parsed = step2Schema.safeParse({
+      businessName,
+      businessEmail,
+      workPhone,
+      website,
+    });
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0].message);
+      return;
+    }
     setSubmitting(true);
     const completedAt = new Date().toISOString();
-    const legacy = saveBusiness
-      ? {
-          business_name: businessName.trim() || null,
-          business_website: website.trim() || null,
-          business_logo_url: logoUrl,
-          updated_at: completedAt,
-        }
-      : { updated_at: completedAt };
-    const full = saveBusiness
-      ? {
-          ...legacy,
-          business_email: businessEmail.trim() || null,
-          work_phone: workPhone.trim() || null,
-          onboarding_completed_at: completedAt,
-        }
-      : { ...legacy, onboarding_completed_at: completedAt };
+    const legacy = {
+      business_name: parsed.data.businessName,
+      business_website: parsed.data.website || null,
+      business_logo_url: logoUrl,
+      updated_at: completedAt,
+    };
+    const full = {
+      ...legacy,
+      business_email: parsed.data.businessEmail,
+      work_phone: parsed.data.workPhone,
+      onboarding_completed_at: completedAt,
+    };
     const { error } = await supabase.from("profiles").update(full).eq("id", user.id);
     if (error) {
       if (!isMissingColumnError(error)) {
@@ -214,8 +221,8 @@ function SignupPage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-2 max-w-xs leading-relaxed">
             {step === 1
-              ? "Your details and members access code."
-              : "Optional — add your company so the community can find you."}
+              ? "Your details."
+              : "Add your business details to finish creating your account."}
           </p>
           <div className="mt-5">
             <StepDots step={step} />
@@ -264,24 +271,11 @@ function SignupPage() {
                 />
               </FieldBlock>
               <FieldBlock label="Password" required>
-                <Input
-                  type="password"
+                <PasswordInput
                   autoComplete="new-password"
                   placeholder="At least 6 characters"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                />
-              </FieldBlock>
-              <FieldBlock
-                label="Access code"
-                required
-                hint="Ask a staff member at So Love Krugersdorp."
-              >
-                <Input
-                  placeholder="000000"
-                  className="font-serial uppercase"
-                  value={accessCode}
-                  onChange={(e) => setAccessCode(e.target.value)}
                 />
               </FieldBlock>
               <Button
@@ -300,13 +294,7 @@ function SignupPage() {
               </Button>
             </form>
           ) : (
-            <form
-              className="space-y-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                finish(true);
-              }}
-            >
+            <form className="space-y-4" onSubmit={finish}>
               <div className="flex justify-center pb-1">
                 <ImageUploader
                   value={logoUrl}
@@ -316,7 +304,7 @@ function SignupPage() {
                   label="Company logo"
                 />
               </div>
-              <FieldBlock label="Company name">
+              <FieldBlock label="Company name" required>
                 <Input
                   autoComplete="organization"
                   placeholder="e.g. Bella Vista Cafe"
@@ -324,7 +312,7 @@ function SignupPage() {
                   onChange={(e) => setBusinessName(e.target.value)}
                 />
               </FieldBlock>
-              <FieldBlock label="Business email">
+              <FieldBlock label="Business email" required>
                 <Input
                   type="email"
                   placeholder="hello@company.co.za"
@@ -332,7 +320,7 @@ function SignupPage() {
                   onChange={(e) => setBusinessEmail(e.target.value)}
                 />
               </FieldBlock>
-              <FieldBlock label="Business phone">
+              <FieldBlock label="Business phone" required>
                 <Input
                   type="tel"
                   placeholder="011 000 0000"
@@ -350,7 +338,7 @@ function SignupPage() {
                   onChange={(e) => setWebsite(e.target.value)}
                 />
               </FieldBlock>
-              <div className="space-y-2 pt-1">
+              <div className="pt-1">
                 <Button
                   type="submit"
                   size="lg"
@@ -364,15 +352,6 @@ function SignupPage() {
                       <Sparkles className="size-4 mr-1.5" /> Finish &amp; join
                     </>
                   )}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="w-full text-muted-foreground"
-                  disabled={submitting}
-                  onClick={() => finish(false)}
-                >
-                  Skip for now
                 </Button>
               </div>
             </form>
