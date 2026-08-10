@@ -12,7 +12,7 @@ import {
   serialOf,
   type ClaimStatus,
 } from "@/components/voucher-kit";
-import { BadgeCheck, ArrowRight, CalendarDays, Ticket } from "lucide-react";
+import { BadgeCheck, ArrowRight, ChevronDown, Ticket } from "lucide-react";
 import { useCountdown } from "@/hooks/use-countdown";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime";
 import { useState } from "react";
@@ -201,19 +201,46 @@ function EmptyState({ filter }: { filter: FilterTab }) {
 function ClaimTicket({ claim }: { claim: ClaimRow }) {
   // Live tick so a voucher flips from active to expired without a reload.
   const cd = useCountdown(claim.expires_at);
+  const [showInfo, setShowInfo] = useState(false);
   const redeemed = !!claim.redeemed_at;
   const status: ClaimStatus = redeemed ? "redeemed" : cd.expired ? "expired" : "active";
   const dim = status === "expired";
+  const openable = status === "active";
+  const title = claim.vouchers?.title ?? "Voucher";
+  const infoId = `claim-info-${claim.id}`;
 
-  const body = (
+  const footerDate =
+    status === "redeemed" && claim.redeemed_at
+      ? claim.redeemed_at
+      : status === "expired"
+        ? claim.expires_at
+        : claim.claimed_at;
+  const footerLabel = status === "redeemed" ? "Used" : status === "expired" ? "Expired" : "Claimed";
+
+  return (
     // Footer is a fixed 40px strip; the notches meet the perforation there.
     // `@container` makes the ticket lay itself out from its own width, so one
     // component covers a ~160px column on a phone and a wide column on desktop.
     <TicketBlock
       notchY="calc(100% - 40px)"
-      className="@container"
-      innerClassName={cn(dim && "opacity-65", status === "active" && "group-hover:bg-ticket-hover")}
+      className={cn(
+        "@container",
+        openable && "transition-transform duration-300 ease-out hover:-translate-y-0.5",
+      )}
+      innerClassName={cn(dim && "opacity-65", openable && "group-hover:bg-ticket-hover")}
     >
+      {/* A stretched link makes the whole ticket open the voucher while leaving
+          the details toggle a real button — nesting one in an <a> is invalid. */}
+      {openable && (
+        <Link
+          to="/app/voucher/$id"
+          params={{ id: claim.id }}
+          aria-label={`Open ${title}`}
+          // z-10 clears the image wrapper, which is `relative` and would
+          // otherwise paint over the overlay and swallow taps on the artwork.
+          className="absolute inset-0 z-10 rounded-3xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        />
+      )}
       <div className="flex flex-1 flex-col gap-2.5 p-2.5 @xs:flex-row @xs:gap-3.5 @xs:p-4">
         <SmartImage
           src={claim.vouchers?.image_url}
@@ -225,17 +252,12 @@ function ClaimTicket({ claim }: { claim: ClaimRow }) {
         />
 
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <div className="flex flex-col items-start gap-1.5 @xs:flex-row @xs:justify-between @xs:gap-2">
-            <div className="min-w-0 @xs:flex-1">
-              <h3 className="line-clamp-2 text-[13px] font-bold leading-snug tracking-tight @xs:text-sm">
-                {claim.vouchers?.title ?? "Voucher"}
-              </h3>
-              {claim.vouchers?.value_text && (
-                <p className="mt-0.5 truncate text-[11px] font-semibold text-primary @xs:text-xs">
-                  {claim.vouchers.value_text}
-                </p>
-              )}
-            </div>
+          {/* w-full + min-w-0: without both, a stacked column sizes this to the
+              text's max-content and long lines spill past the ticket edge. */}
+          <div className="flex w-full min-w-0 flex-col items-start gap-1.5 @xs:flex-row @xs:justify-between @xs:gap-2">
+            <h3 className="line-clamp-2 min-w-0 max-w-full break-words text-[13px] font-bold leading-snug tracking-tight @xs:flex-1 @xs:text-sm">
+              {title}
+            </h3>
             <StatusPill status={status} expiresAt={claim.expires_at} className="shrink-0" />
           </div>
 
@@ -249,32 +271,59 @@ function ClaimTicket({ claim }: { claim: ClaimRow }) {
         </div>
       </div>
 
+      {/* Sits above the perforation so the footer stays a 40px strip and the
+          notches keep meeting the tear line however tall the panel gets. */}
+      {showInfo && (
+        <dl
+          id={infoId}
+          className="grid animate-in gap-1.5 bg-foreground/[0.03] px-2.5 py-2 text-[10px] duration-200 fade-in slide-in-from-top-1 @xs:px-4 @xs:text-[11px]"
+        >
+          {claim.vouchers?.value_text && (
+            <InfoRow label="Offer" value={claim.vouchers.value_text} accent />
+          )}
+          <InfoRow label="Claimed" value={formatDayTime(claim.claimed_at)} />
+          {redeemed && claim.redeemed_at ? (
+            <InfoRow label="Used" value={formatDayTime(claim.redeemed_at)} />
+          ) : (
+            <InfoRow
+              label={cd.expired ? "Expired" : "Expires"}
+              value={formatDayTime(claim.expires_at)}
+            />
+          )}
+          <InfoRow label="Reference" value={`Nº ${serialOf(claim.id)}`} mono />
+        </dl>
+      )}
+
       <Perforation />
 
       <div className="flex h-10 items-center justify-between gap-1.5 px-3 @xs:gap-2 @xs:px-4">
-        <span className="truncate text-[10px] text-muted-foreground @xs:text-[11px]">
+        <span className="inline-flex min-w-0 items-center gap-0.5">
+          <button
+            type="button"
+            onClick={(e) => {
+              // This sits over the stretched link; keep the tap off the link.
+              e.preventDefault();
+              e.stopPropagation();
+              setShowInfo((v) => !v);
+            }}
+            aria-expanded={showInfo}
+            aria-controls={infoId}
+            aria-label={showInfo ? `Hide details for ${title}` : `Show details for ${title}`}
+            className="relative z-20 -ml-1 grid size-6 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ChevronDown
+              className={cn("size-3.5 transition-transform duration-200", showInfo && "rotate-180")}
+            />
+          </button>
           {/* The prefix word repeats the status pill, so a narrow column keeps
               only the date rather than truncating it to "Claimed 10...". */}
-          {status === "redeemed" && claim.redeemed_at ? (
-            <span className="inline-flex items-center gap-1.5">
-              <CalendarDays className="size-3 shrink-0" />
-              <span className="hidden @xs:inline">Used</span>
-              {formatDay(claim.redeemed_at)}
-            </span>
-          ) : status === "expired" ? (
-            <>
-              <span className="hidden @xs:inline">Expired </span>
-              {formatDay(claim.expires_at)}
-            </>
-          ) : (
-            <>
-              <span className="hidden @xs:inline">Claimed </span>
-              {formatDay(claim.claimed_at)}
-            </>
-          )}
+          <span className="truncate text-[10px] text-muted-foreground @xs:text-[11px]">
+            <span className="hidden @xs:inline">{footerLabel} </span>
+            {formatDay(footerDate)}
+          </span>
         </span>
 
-        {status === "active" ? (
+        {openable ? (
           <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold text-primary @xs:text-[11px]">
             Open
             <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
@@ -288,22 +337,46 @@ function ClaimTicket({ claim }: { claim: ClaimRow }) {
       </div>
     </TicketBlock>
   );
+}
 
-  if (status !== "active") return body;
-
-  // h-full on the link: without it the anchor collapses to its own content and
-  // the ticket inside can't stretch to the grid row, leaving ragged card edges.
+/** One label/value line inside a ticket's details panel. */
+function InfoRow({
+  label,
+  value,
+  accent,
+  mono,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+  mono?: boolean;
+}) {
   return (
-    <Link
-      to="/app/voucher/$id"
-      params={{ id: claim.id }}
-      className="block h-full transition-transform duration-300 ease-out hover:-translate-y-0.5"
-    >
-      {body}
-    </Link>
+    <div className="min-w-0 @xs:flex @xs:gap-2">
+      <dt className="text-muted-foreground @xs:w-16 @xs:shrink-0">{label}</dt>
+      <dd
+        className={cn(
+          "min-w-0 break-words font-medium @xs:flex-1",
+          accent && "font-semibold text-primary",
+          mono && "font-serial tracking-wide text-muted-foreground",
+        )}
+      >
+        {value}
+      </dd>
+    </div>
   );
 }
 
 function formatDay(iso: string) {
   return new Date(iso).toLocaleDateString("en-ZA", { day: "numeric", month: "short" });
+}
+
+function formatDayTime(iso: string) {
+  return new Date(iso).toLocaleString("en-ZA", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
