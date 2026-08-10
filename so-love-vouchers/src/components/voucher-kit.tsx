@@ -68,7 +68,7 @@ export function TicketBlock({
     <div className={cn("slk-ticket-shadow group h-full", className)}>
       <div
         className={cn(
-          "slk-punch relative flex h-full flex-col rounded-3xl bg-card",
+          "slk-punch relative flex h-full flex-col rounded-3xl bg-ticket",
           innerClassName,
         )}
         style={
@@ -234,15 +234,15 @@ export function CountdownDisplay({ expiresAt }: { expiresAt: string }) {
 export function TicketSkeleton({ variant = "card" }: { variant?: "card" | "row" }) {
   if (variant === "row") {
     return (
-      <TicketBlock notchY="calc(100% - 30px)">
-        <div className="flex gap-4 p-4">
-          <div className="size-16 shrink-0 animate-pulse rounded-2xl bg-foreground/[0.07]" />
+      <TicketBlock notchY="calc(100% - 30px)" className="@container">
+        <div className="flex flex-col gap-2.5 p-2.5 @xs:flex-row @xs:gap-4 @xs:p-4">
+          <div className="aspect-[5/4] w-full shrink-0 animate-pulse rounded-2xl bg-foreground/[0.07] @xs:aspect-auto @xs:h-16 @xs:w-16" />
           <div className="flex-1 space-y-2 py-1">
             <div className="h-3.5 w-2/3 animate-pulse rounded-full bg-foreground/[0.07]" />
             <div className="h-3 w-1/3 animate-pulse rounded-full bg-foreground/[0.05]" />
           </div>
         </div>
-        <div className="px-4 pb-4">
+        <div className="px-2.5 pb-2.5 @xs:px-4 @xs:pb-4">
           <div className="h-1 w-full animate-pulse rounded-full bg-foreground/[0.06]" />
         </div>
       </TicketBlock>

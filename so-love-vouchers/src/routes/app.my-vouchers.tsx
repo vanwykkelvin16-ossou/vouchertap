@@ -141,7 +141,7 @@ function MyVouchersPage() {
       </div>
 
       {isLoading ? (
-        <ul className="grid gap-4 md:grid-cols-2">
+        <ul className="grid grid-cols-2 gap-3 md:gap-4">
           {[0, 1, 2, 3].map((i) => (
             <li key={i}>
               <TicketSkeleton variant="row" />
@@ -151,7 +151,7 @@ function MyVouchersPage() {
       ) : filtered.length === 0 ? (
         <EmptyState filter={filter} />
       ) : (
-        <ul className="grid gap-4 md:grid-cols-2">
+        <ul className="grid grid-cols-2 gap-3 md:gap-4">
           {filtered.map((c, i) => (
             <li
               key={c.id}
@@ -207,25 +207,31 @@ function ClaimTicket({ claim }: { claim: ClaimRow }) {
 
   const body = (
     // Footer is a fixed 40px strip; the notches meet the perforation there.
+    // `@container` makes the ticket lay itself out from its own width, so one
+    // component covers a ~160px column on a phone and a wide column on desktop.
     <TicketBlock
       notchY="calc(100% - 40px)"
-      innerClassName={cn(dim && "opacity-65", status === "active" && "group-hover:bg-card")}
+      className="@container"
+      innerClassName={cn(dim && "opacity-65", status === "active" && "group-hover:bg-ticket-hover")}
     >
-      <div className="flex flex-1 gap-3.5 p-4">
+      <div className="flex flex-1 flex-col gap-2.5 p-2.5 @xs:flex-row @xs:gap-3.5 @xs:p-4">
         <SmartImage
           src={claim.vouchers?.image_url}
           alt=""
-          wrapperClassName={cn("size-16 shrink-0 rounded-2xl", dim && "grayscale")}
+          wrapperClassName={cn(
+            "aspect-[5/4] w-full shrink-0 rounded-2xl @xs:aspect-auto @xs:h-16 @xs:w-16",
+            dim && "grayscale",
+          )}
         />
 
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <h3 className="line-clamp-2 text-sm font-bold leading-snug tracking-tight">
+          <div className="flex flex-col items-start gap-1.5 @xs:flex-row @xs:justify-between @xs:gap-2">
+            <div className="min-w-0 @xs:flex-1">
+              <h3 className="line-clamp-2 text-[13px] font-bold leading-snug tracking-tight @xs:text-sm">
                 {claim.vouchers?.title ?? "Voucher"}
               </h3>
               {claim.vouchers?.value_text && (
-                <p className="mt-0.5 truncate text-xs font-semibold text-primary">
+                <p className="mt-0.5 truncate text-[11px] font-semibold text-primary @xs:text-xs">
                   {claim.vouchers.value_text}
                 </p>
               )}
@@ -245,27 +251,37 @@ function ClaimTicket({ claim }: { claim: ClaimRow }) {
 
       <Perforation />
 
-      <div className="flex h-10 items-center justify-between gap-2 px-4">
-        <span className="truncate text-[11px] text-muted-foreground">
+      <div className="flex h-10 items-center justify-between gap-1.5 px-3 @xs:gap-2 @xs:px-4">
+        <span className="truncate text-[10px] text-muted-foreground @xs:text-[11px]">
+          {/* The prefix word repeats the status pill, so a narrow column keeps
+              only the date rather than truncating it to "Claimed 10...". */}
           {status === "redeemed" && claim.redeemed_at ? (
             <span className="inline-flex items-center gap-1.5">
-              <CalendarDays className="size-3" />
-              Used {formatDay(claim.redeemed_at)}
+              <CalendarDays className="size-3 shrink-0" />
+              <span className="hidden @xs:inline">Used</span>
+              {formatDay(claim.redeemed_at)}
             </span>
           ) : status === "expired" ? (
-            <>Expired {formatDay(claim.expires_at)}</>
+            <>
+              <span className="hidden @xs:inline">Expired </span>
+              {formatDay(claim.expires_at)}
+            </>
           ) : (
-            <>Claimed {formatDay(claim.claimed_at)}</>
+            <>
+              <span className="hidden @xs:inline">Claimed </span>
+              {formatDay(claim.claimed_at)}
+            </>
           )}
         </span>
 
         {status === "active" ? (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
+          <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold text-primary @xs:text-[11px]">
             Open
             <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
           </span>
         ) : (
-          <span className="font-serial text-[10px] text-muted-foreground/60">
+          // The serial is a nicety; in a narrow column the date wins the space.
+          <span className="hidden shrink-0 font-serial text-[10px] text-muted-foreground/60 @xs:inline">
             Nº {serialOf(claim.id)}
           </span>
         )}
@@ -275,11 +291,13 @@ function ClaimTicket({ claim }: { claim: ClaimRow }) {
 
   if (status !== "active") return body;
 
+  // h-full on the link: without it the anchor collapses to its own content and
+  // the ticket inside can't stretch to the grid row, leaving ragged card edges.
   return (
     <Link
       to="/app/voucher/$id"
       params={{ id: claim.id }}
-      className="block transition-transform duration-300 ease-out hover:-translate-y-0.5"
+      className="block h-full transition-transform duration-300 ease-out hover:-translate-y-0.5"
     >
       {body}
     </Link>
