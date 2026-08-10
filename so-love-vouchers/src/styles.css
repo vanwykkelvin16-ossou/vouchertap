@@ -136,6 +136,23 @@
   --sidebar-ring: oklch(0.62 0.22 25);
 }
 
+/* ------------------------------------------------------------
+   App shell geometry. The mobile nav is a floating pill, so every page has to
+   reserve its height at the bottom or the bar ends up sitting on the last row.
+   Height, float and reserve live together here so they can't drift apart.
+   Installed as a PWA the status bar is translucent (black-translucent +
+   viewport-fit=cover), so the top inset has to be reserved as well.
+   ------------------------------------------------------------ */
+:root {
+  --app-nav-h: 3.875rem; /* 44px tap targets + 2 × 8px padding + 2 × 1px border */
+  /* max(): a browser with its own bottom toolbar reports a 0 inset, and the
+     bar still needs to sit off the edge there. */
+  --app-nav-inset: calc(max(env(safe-area-inset-bottom, 0px), 0.5rem) + 0.75rem);
+  --app-nav-space: calc(var(--app-nav-inset) + var(--app-nav-h) + 2.5rem);
+  --app-safe-top: env(safe-area-inset-top, 0px);
+  --app-top-space: calc(var(--app-safe-top) + 1.5rem);
+}
+
 @layer base {
   * {
     border-color: var(--color-border);

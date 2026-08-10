@@ -152,24 +152,28 @@ function AppLayout() {
       </aside>
 
       {/* Main */}
-      <main
-        className="flex-1 mx-auto w-full max-w-xl md:max-w-6xl px-5 md:px-10 pt-6 md:pt-10 pb-28 md:pb-12"
-        style={{
-          paddingTop: "calc(env(safe-area-inset-top) + 1.5rem)",
-          paddingBottom: "calc(env(safe-area-inset-bottom) + 7rem)",
-        }}
-      >
+      {/* Padding comes from the shared shell tokens rather than inline styles,
+          which used to win over `md:` and keep the phone's bottom reserve on
+          desktop too. See --app-nav-space in styles.css. */}
+      <main className="flex-1 mx-auto w-full max-w-xl md:max-w-6xl px-5 md:px-10 pt-[var(--app-top-space)] md:pt-10 pb-[var(--app-nav-space)] md:pb-12">
         <Outlet />
       </main>
 
+      {/* Installed as a PWA the status bar is translucent, so content scrolls up
+          into the clock. This frosted strip is exactly the inset tall — and zero
+          tall in a normal browser, where the status bar isn't ours to cover. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[var(--app-safe-top)] bg-background/85 backdrop-blur-md md:hidden"
+      />
+
       {/* Mobile floating pill nav */}
-      <nav
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 px-4 pointer-events-none"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)" }}
-      >
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 px-4 pb-[var(--app-nav-inset)] pointer-events-none">
         <ul
           className={cn(
-            "pointer-events-auto mx-auto max-w-sm grid items-center rounded-full border border-border/60 bg-background/80 backdrop-blur-xl shadow-[0_10px_30px_-10px_rgba(0,0,0,0.25)] px-2 py-2",
+            // bg-background/95, not /80: at 80% the ticket underneath showed
+            // through while scrolling, which read as the bar stuck to the card.
+            "pointer-events-auto mx-auto max-w-sm grid items-center rounded-full border border-border/60 bg-background/95 backdrop-blur-xl shadow-[0_10px_30px_-10px_rgba(0,0,0,0.25)] px-2 py-2",
             isAdmin ? "grid-cols-6" : "grid-cols-5",
           )}
         >
