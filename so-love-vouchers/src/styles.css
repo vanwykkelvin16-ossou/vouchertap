@@ -248,10 +248,12 @@
 .dark .slk-ticket-shadow {
   filter: drop-shadow(0 1px 0 oklch(1 0 0 / 8%)) drop-shadow(0 12px 26px oklch(0 0 0 / 45%));
 }
+/* Hover lifts the ticket with a deeper ink shadow. Deliberately neutral — a
+   tinted glow read as a red background bleeding out of the block. */
 .slk-ticket-shadow:has(a:hover),
 .slk-ticket-shadow:hover {
   filter: drop-shadow(0 1px 1px color-mix(in oklab, var(--color-foreground) 8%, transparent))
-    drop-shadow(0 18px 34px color-mix(in oklab, var(--color-primary) 18%, transparent));
+    drop-shadow(0 18px 34px color-mix(in oklab, var(--color-foreground) 16%, transparent));
 }
 
 /* The dashed rule that lines up with the punched notches. */

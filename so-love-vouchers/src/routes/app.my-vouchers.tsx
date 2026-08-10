@@ -12,7 +12,15 @@ import {
   serialOf,
   type ClaimStatus,
 } from "@/components/voucher-kit";
-import { BadgeCheck, ArrowRight, ChevronDown, Ticket } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { BadgeCheck, ArrowRight, Ticket } from "lucide-react";
 import { useCountdown } from "@/hooks/use-countdown";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime";
 import { useState } from "react";
@@ -201,13 +209,12 @@ function EmptyState({ filter }: { filter: FilterTab }) {
 function ClaimTicket({ claim }: { claim: ClaimRow }) {
   // Live tick so a voucher flips from active to expired without a reload.
   const cd = useCountdown(claim.expires_at);
-  const [showInfo, setShowInfo] = useState(false);
+  const [open, setOpen] = useState(false);
   const redeemed = !!claim.redeemed_at;
   const status: ClaimStatus = redeemed ? "redeemed" : cd.expired ? "expired" : "active";
   const dim = status === "expired";
   const openable = status === "active";
   const title = claim.vouchers?.title ?? "Voucher";
-  const infoId = `claim-info-${claim.id}`;
 
   const footerDate =
     status === "redeemed" && claim.redeemed_at
@@ -218,124 +225,150 @@ function ClaimTicket({ claim }: { claim: ClaimRow }) {
   const footerLabel = status === "redeemed" ? "Used" : status === "expired" ? "Expired" : "Claimed";
 
   return (
-    // Footer is a fixed 40px strip; the notches meet the perforation there.
-    // `@container` makes the ticket lay itself out from its own width, so one
-    // component covers a ~160px column on a phone and a wide column on desktop.
-    <TicketBlock
-      notchY="calc(100% - 40px)"
-      className={cn(
-        "@container",
-        openable && "transition-transform duration-300 ease-out hover:-translate-y-0.5",
-      )}
-      innerClassName={cn(dim && "opacity-65", openable && "group-hover:bg-ticket-hover")}
-    >
-      {/* A stretched link makes the whole ticket open the voucher while leaving
-          the details toggle a real button — nesting one in an <a> is invalid. */}
-      {openable && (
-        <Link
-          to="/app/voucher/$id"
-          params={{ id: claim.id }}
-          aria-label={`Open ${title}`}
-          // z-10 clears the image wrapper, which is `relative` and would
-          // otherwise paint over the overlay and swallow taps on the artwork.
-          className="absolute inset-0 z-10 rounded-3xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-        />
-      )}
-      <div className="flex flex-1 flex-col gap-2.5 p-2.5 @xs:flex-row @xs:gap-3.5 @xs:p-4">
-        <SmartImage
-          src={claim.vouchers?.image_url}
-          alt=""
-          wrapperClassName={cn(
-            "aspect-[5/4] w-full shrink-0 rounded-2xl @xs:aspect-auto @xs:h-16 @xs:w-16",
-            dim && "grayscale",
-          )}
-        />
-
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          {/* w-full + min-w-0: without both, a stacked column sizes this to the
-              text's max-content and long lines spill past the ticket edge. */}
-          <div className="flex w-full min-w-0 flex-col items-start gap-1.5 @xs:flex-row @xs:justify-between @xs:gap-2">
-            <h3 className="line-clamp-2 min-w-0 max-w-full break-words text-[13px] font-bold leading-snug tracking-tight @xs:flex-1 @xs:text-sm">
-              {title}
-            </h3>
-            <StatusPill status={status} expiresAt={claim.expires_at} className="shrink-0" />
-          </div>
-
-          {status === "active" && (
-            <WindowBar
-              claimedAt={claim.claimed_at}
-              expiresAt={claim.expires_at}
-              className="mt-auto"
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Sits above the perforation so the footer stays a 40px strip and the
-          notches keep meeting the tear line however tall the panel gets. */}
-      {showInfo && (
-        <dl
-          id={infoId}
-          className="grid animate-in gap-1.5 bg-foreground/[0.03] px-2.5 py-2 text-[10px] duration-200 fade-in slide-in-from-top-1 @xs:px-4 @xs:text-[11px]"
-        >
-          {claim.vouchers?.value_text && (
-            <InfoRow label="Offer" value={claim.vouchers.value_text} accent />
-          )}
-          <InfoRow label="Claimed" value={formatDayTime(claim.claimed_at)} />
-          {redeemed && claim.redeemed_at ? (
-            <InfoRow label="Used" value={formatDayTime(claim.redeemed_at)} />
-          ) : (
-            <InfoRow
-              label={cd.expired ? "Expired" : "Expires"}
-              value={formatDayTime(claim.expires_at)}
-            />
-          )}
-          <InfoRow label="Reference" value={`Nº ${serialOf(claim.id)}`} mono />
-        </dl>
-      )}
-
-      <Perforation />
-
-      <div className="flex h-10 items-center justify-between gap-1.5 px-3 @xs:gap-2 @xs:px-4">
-        <span className="inline-flex min-w-0 items-center gap-0.5">
+    // Dialog.Root renders no element of its own, so the ticket stays the grid
+    // item's only child and still stretches to its row.
+    <Dialog open={open} onOpenChange={setOpen}>
+      {/* Footer is a fixed 40px strip; the notches meet the perforation there.
+          `@container` makes the ticket lay itself out from its own width, so one
+          component covers a ~160px column on a phone and a wide desktop one. */}
+      <TicketBlock
+        notchY="calc(100% - 40px)"
+        className="@container transition-transform duration-300 ease-out hover:-translate-y-0.5"
+        innerClassName={cn(dim && "opacity-65", "group-hover:bg-ticket-hover")}
+      >
+        {/* One tap target for the whole ticket. Stretched rather than wrapping
+            the markup so the card keeps its layout, and z-10 clears the image
+            wrapper, which is `relative` and would otherwise eat taps on it. */}
+        <DialogTrigger asChild>
           <button
             type="button"
-            onClick={(e) => {
-              // This sits over the stretched link; keep the tap off the link.
-              e.preventDefault();
-              e.stopPropagation();
-              setShowInfo((v) => !v);
-            }}
-            aria-expanded={showInfo}
-            aria-controls={infoId}
-            aria-label={showInfo ? `Hide details for ${title}` : `Show details for ${title}`}
-            className="relative z-20 -ml-1 grid size-6 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <ChevronDown
-              className={cn("size-3.5 transition-transform duration-200", showInfo && "rotate-180")}
-            />
-          </button>
+            aria-label={`View details for ${title}`}
+            className="absolute inset-0 z-10 cursor-pointer rounded-3xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+          />
+        </DialogTrigger>
+
+        <div className="flex flex-1 flex-col gap-2.5 p-2.5 @xs:flex-row @xs:gap-3.5 @xs:p-4">
+          <SmartImage
+            src={claim.vouchers?.image_url}
+            alt=""
+            wrapperClassName={cn(
+              "aspect-[5/4] w-full shrink-0 rounded-2xl @xs:aspect-auto @xs:h-16 @xs:w-16",
+              dim && "grayscale",
+            )}
+          />
+
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            {/* w-full + min-w-0: without both, a stacked column sizes this to
+                the text's max-content and long lines spill past the edge. */}
+            <div className="flex w-full min-w-0 flex-col items-start gap-1.5 @xs:flex-row @xs:justify-between @xs:gap-2">
+              <h3 className="line-clamp-2 min-w-0 max-w-full break-words text-[13px] font-bold leading-snug tracking-tight @xs:flex-1 @xs:text-sm">
+                {title}
+              </h3>
+              <StatusPill status={status} expiresAt={claim.expires_at} className="shrink-0" />
+            </div>
+
+            {status === "active" && (
+              <WindowBar
+                claimedAt={claim.claimed_at}
+                expiresAt={claim.expires_at}
+                className="mt-auto"
+              />
+            )}
+          </div>
+        </div>
+
+        <Perforation />
+
+        <div className="flex h-10 items-center justify-between gap-1.5 px-3 @xs:gap-2 @xs:px-4">
           {/* The prefix word repeats the status pill, so a narrow column keeps
               only the date rather than truncating it to "Claimed 10...". */}
           <span className="truncate text-[10px] text-muted-foreground @xs:text-[11px]">
             <span className="hidden @xs:inline">{footerLabel} </span>
             {formatDay(footerDate)}
           </span>
-        </span>
 
-        {openable ? (
-          <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold text-primary @xs:text-[11px]">
-            Open
+          <span
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold @xs:text-[11px]",
+              openable ? "text-primary" : "text-muted-foreground",
+            )}
+          >
+            Details
             <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
           </span>
-        ) : (
-          // The serial is a nicety; in a narrow column the date wins the space.
-          <span className="hidden shrink-0 font-serial text-[10px] text-muted-foreground/60 @xs:inline">
-            Nº {serialOf(claim.id)}
-          </span>
+        </div>
+      </TicketBlock>
+
+      <ClaimDetails claim={claim} status={status} onOpenVoucher={() => setOpen(false)} />
+    </Dialog>
+  );
+}
+
+/** Everything about one claim — opened by tapping its ticket. */
+function ClaimDetails({
+  claim,
+  status,
+  onOpenVoucher,
+}: {
+  claim: ClaimRow;
+  status: ClaimStatus;
+  onOpenVoucher: () => void;
+}) {
+  const title = claim.vouchers?.title ?? "Voucher";
+
+  return (
+    // @container so the shared InfoRow picks its two-column form in here too.
+    <DialogContent className="@container max-h-[85dvh] w-[calc(100%-2rem)] max-w-md gap-0 overflow-y-auto p-0">
+      <SmartImage
+        src={claim.vouchers?.image_url}
+        alt=""
+        wrapperClassName={cn("aspect-[16/9] w-full shrink-0", status === "expired" && "grayscale")}
+      />
+
+      <div className="space-y-4 p-5">
+        <div className="space-y-2">
+          <div className="flex items-start justify-between gap-3">
+            <DialogTitle className="min-w-0 break-words text-base leading-snug">
+              {title}
+            </DialogTitle>
+            <StatusPill status={status} expiresAt={claim.expires_at} className="shrink-0" />
+          </div>
+          {claim.vouchers?.value_text && (
+            <DialogDescription className="font-semibold text-primary">
+              {claim.vouchers.value_text}
+            </DialogDescription>
+          )}
+        </div>
+
+        {claim.vouchers?.description && (
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+            {claim.vouchers.description}
+          </p>
+        )}
+
+        <dl className="grid gap-2 border-t border-border pt-4 text-xs">
+          <InfoRow label="Claimed" value={formatDayTime(claim.claimed_at)} />
+          {status === "redeemed" && claim.redeemed_at ? (
+            <InfoRow label="Used" value={formatDayTime(claim.redeemed_at)} />
+          ) : (
+            <InfoRow
+              label={status === "expired" ? "Expired" : "Expires"}
+              value={formatDayTime(claim.expires_at)}
+            />
+          )}
+          <InfoRow label="Reference" value={`Nº ${serialOf(claim.id)}`} mono />
+        </dl>
+
+        {status === "active" && (
+          <Button asChild size="lg" className="w-full">
+            <Link to="/app/voucher/$id" params={{ id: claim.id }} onClick={onOpenVoucher}>
+              Open to redeem
+              <ArrowRight className="size-4" />
+            </Link>
+          </Button>
         )}
       </div>
-    </TicketBlock>
+    </DialogContent>
   );
 }
 
