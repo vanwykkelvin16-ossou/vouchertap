@@ -42,6 +42,10 @@ const SERIES = [
   { key: "redeemed" as const, label: "Redeemed", color: "var(--series-redeemed)" },
 ];
 
+/** Recent activity is a teaser: five rows, then "All redemptions" for the rest.
+    The fetch and the render share this so the card can't quietly grow. */
+const RECENT_ACTIVITY_ROWS = 5;
+
 function AdminDashboard() {
   const [range, setRange] = useState<Range>(14);
   const [view, setView] = useState<"chart" | "table">("chart");
@@ -160,7 +164,7 @@ function AdminDashboard() {
         .from("voucher_claims")
         .select("id, user_id, claimed_at, redeemed_at, vouchers (title)")
         .order("claimed_at", { ascending: false })
-        .limit(6);
+        .limit(RECENT_ACTIVITY_ROWS);
       if (error) throw error;
       const ids = Array.from(new Set((claims ?? []).map((c) => c.user_id)));
       const { data: profiles } = await supabase
@@ -372,7 +376,7 @@ function AdminDashboard() {
             <EmptyNote>No vouchers claimed yet.</EmptyNote>
           ) : (
             <ul className="divide-y divide-border -mx-1">
-              {recent.data.map((r) => (
+              {recent.data.slice(0, RECENT_ACTIVITY_ROWS).map((r) => (
                 <li key={r.id} className="flex items-center gap-3 px-1 py-2.5">
                   <span
                     className={cn(
