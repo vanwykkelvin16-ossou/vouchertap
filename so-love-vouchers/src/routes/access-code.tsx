@@ -48,11 +48,19 @@ function AccessCodePage() {
         </p>
 
         <form onSubmit={handleSubmit} className="w-full flex flex-col items-center gap-6">
+          {/* input-otp defaults to inputMode="numeric", which gives mobile a digits-only
+              keypad - the letters in the code can't be typed. Force a text keyboard. */}
           <InputOTP
             maxLength={ACCESS_CODE.length}
             value={code}
-            onChange={setCode}
+            onChange={(v) => setCode(v.toUpperCase())}
             pattern="^[A-Za-z0-9]*$"
+            inputMode="text"
+            autoComplete="off"
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="go"
             containerClassName="justify-center"
           >
             <InputOTPGroup>
