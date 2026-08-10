@@ -89,7 +89,8 @@
       "Bash(DEVELOPER_DIR=/Library/Developer/CommandLineTools git check-ignore -v .claude/worktrees/)",
       "mcp__3fbcd6a8-34fb-448e-a4e2-eb7ad9b8da43__list_edge_functions",
       "Bash(export DEVELOPER_DIR=/Library/Developer/CommandLineTools)",
-      "Bash(DEVELOPER_DIR=/Library/Developer/CommandLineTools git diff .claude/settings.local.json .claude/launch.json)"
+      "Bash(DEVELOPER_DIR=/Library/Developer/CommandLineTools git diff .claude/settings.local.json .claude/launch.json)",
+      "Bash(grep -o 'inputMode[^,;\\)]\\\\{0,40\\\\}' node_modules/input-otp/dist/index.js)"
     ]
   }
 }
