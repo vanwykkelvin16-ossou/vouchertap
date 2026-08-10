@@ -109,7 +109,7 @@ export function AdminModal({
             type="button"
             onClick={() => onOpenChange(false)}
             aria-label="Close"
-            className="absolute right-4 top-4 grid size-9 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background max-sm:top-5"
+            className="slk-close absolute right-4 top-4 max-sm:top-5"
           >
             <X className="size-4.5" />
           </button>
