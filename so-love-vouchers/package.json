@@ -8,7 +8,7 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
-    "deploy": "NODE_ENV=production vite build && wrangler deploy --config dist/server/wrangler.json",
+    "deploy": "NODE_ENV=production vite build && wrangler deploy --config .output/server/wrangler.json",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
