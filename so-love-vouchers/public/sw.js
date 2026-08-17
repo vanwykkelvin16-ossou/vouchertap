@@ -1,5 +1,5 @@
 // Minimal push notification service worker for So Love Krugersdorp
-// Only handles push delivery and click-through. No caching, no offline behavior.
+// Handles push delivery, click-through, and installability. No caching.
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -8,6 +8,12 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
+
+// Chromium only offers an install prompt (beforeinstallprompt) for a service
+// worker that has a fetch handler. This one is deliberately inert: it never
+// calls respondWith, so every request falls through to the network exactly as
+// before. Installability only — this is still not an offline-capable app.
+self.addEventListener("fetch", () => {});
 
 self.addEventListener("push", (event) => {
   let payload = {};

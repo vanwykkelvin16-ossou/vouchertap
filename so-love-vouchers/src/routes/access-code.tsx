@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { ACCESS_CODE, grantAccess, hasAccess } from "@/lib/access-code";
+import { shouldOfferInstall } from "@/lib/pwa-install";
 import { toast } from "sonner";
 import {} from "lucide-react";
 import { BrandHeart } from "@/components/brand-heart";
@@ -17,7 +18,13 @@ function AccessCodePage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (hasAccess()) navigate({ to: "/login" });
+    if (hasAccess()) {
+      navigate({ to: "/login" });
+      return;
+    }
+    // A shared link lands here without passing the entry hop, so offer the
+    // install page once first. /install marks itself seen, so this can't loop.
+    if (shouldOfferInstall()) navigate({ to: "/install", replace: true });
   }, [navigate]);
 
   function handleSubmit(e?: React.FormEvent) {

@@ -92,6 +92,35 @@ const PRELOADER_JS = `
 })();
 `;
 
+// Installability plumbing, kept out of React on purpose.
+//
+// `beforeinstallprompt` fires once, early, and is often gone before hydration —
+// so it is captured here and stashed for the install page to use later. It also
+// has to be preventDefault()ed or Chrome shows its own mini-infobar alongside
+// our button. The service worker is registered on load rather than only when a
+// member enables push, because Chromium won't offer an install prompt at all
+// without a live worker.
+const PWA_INSTALL_JS = `
+(function(){
+  window.__slkInstall={event:null};
+  window.addEventListener('beforeinstallprompt',function(e){
+    e.preventDefault();
+    window.__slkInstall.event=e;
+    window.dispatchEvent(new Event('slk:install-available'));
+  });
+  window.addEventListener('appinstalled',function(){
+    window.__slkInstall.event=null;
+    try{localStorage.setItem('slk.pwa_installed_v1','1')}catch(e){}
+    window.dispatchEvent(new Event('slk:installed'));
+  });
+  if('serviceWorker' in navigator){
+    window.addEventListener('load',function(){
+      navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(function(){});
+    });
+  }
+})();
+`;
+
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -219,6 +248,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: PRELOADER_SESSION_JS }} />
+        <script dangerouslySetInnerHTML={{ __html: PWA_INSTALL_JS }} />
         <style dangerouslySetInnerHTML={{ __html: PRELOADER_CSS }} />
         <HeadContent />
       </head>

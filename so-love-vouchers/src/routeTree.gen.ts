@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccessCodeRouteImport } from './routes/access-code'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/app'
+import { Route as InstallRouteImport } from './routes/install'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as SignupRouteImport } from './routes/signup'
@@ -50,6 +51,11 @@ const AdminRoute = AdminRouteImport.update({
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InstallRoute = InstallRouteImport.update({
+  id: '/install',
+  path: '/install',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -148,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/access-code': typeof AccessCodeRoute
   '/admin': typeof AdminRouteWithChildren
   '/app': typeof AppRouteWithChildren
+  '/install': typeof InstallRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
@@ -171,6 +178,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/access-code': typeof AccessCodeRoute
   '/app': typeof AppRouteWithChildren
+  '/install': typeof InstallRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
@@ -196,6 +204,7 @@ export interface FileRoutesById {
   '/access-code': typeof AccessCodeRoute
   '/admin': typeof AdminRouteWithChildren
   '/app': typeof AppRouteWithChildren
+  '/install': typeof InstallRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
@@ -222,6 +231,7 @@ export interface FileRouteTypes {
     | '/access-code'
     | '/admin'
     | '/app'
+    | '/install'
     | '/login'
     | '/onboarding'
     | '/signup'
@@ -245,6 +255,7 @@ export interface FileRouteTypes {
     | '/'
     | '/access-code'
     | '/app'
+    | '/install'
     | '/login'
     | '/onboarding'
     | '/signup'
@@ -269,6 +280,7 @@ export interface FileRouteTypes {
     | '/access-code'
     | '/admin'
     | '/app'
+    | '/install'
     | '/login'
     | '/onboarding'
     | '/signup'
@@ -294,6 +306,7 @@ export interface RootRouteChildren {
   AccessCodeRoute: typeof AccessCodeRoute
   AdminRoute: typeof AdminRouteWithChildren
   AppRoute: typeof AppRouteWithChildren
+  InstallRoute: typeof InstallRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   SignupRoute: typeof SignupRoute
@@ -327,6 +340,13 @@ declare module '@tanstack/react-router' {
       path: '/app'
       fullPath: '/app'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/install': {
+      id: '/install'
+      path: '/install'
+      fullPath: '/install'
+      preLoaderRoute: typeof InstallRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -509,6 +529,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccessCodeRoute: AccessCodeRoute,
   AdminRoute: AdminRouteWithChildren,
   AppRoute: AppRouteWithChildren,
+  InstallRoute: InstallRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   SignupRoute: SignupRoute,
