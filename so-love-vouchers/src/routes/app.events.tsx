@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, MapPin, Loader2, Pin, Clock, ExternalLink } from "lucide-react";
+import { CalendarDays, MapPin, Loader2, Pin, Clock, ExternalLink, PlayCircle } from "lucide-react";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime";
 import { SmartImage } from "@/components/smart-image";
 
@@ -202,13 +202,33 @@ function EventsPage() {
                         </div>
                       )}
                     </div>
-                    {event.form_url && (
-                      <Button asChild className="w-full mt-auto rounded-xl h-12 font-semibold">
-                        <a href={event.form_url} target="_blank" rel="noopener noreferrer">
-                          Register
-                          <ExternalLink className="size-4 ml-1.5" />
-                        </a>
-                      </Button>
+                    {(event.form_url || event.video_url) && (
+                      // Wrapper carries mt-auto so the group pins to the card
+                      // bottom and cards stay aligned however many links exist.
+                      <div className="mt-auto flex flex-col gap-2">
+                        {event.form_url && (
+                          <Button asChild className="w-full rounded-xl h-12 font-semibold">
+                            <a href={event.form_url} target="_blank" rel="noopener noreferrer">
+                              Register
+                              <ExternalLink className="size-4 ml-1.5" />
+                            </a>
+                          </Button>
+                        )}
+                        {event.video_url && (
+                          // Secondary only when Register is also present, so the
+                          // sign-up stays the clear primary action.
+                          <Button
+                            asChild
+                            variant={event.form_url ? "outline" : "default"}
+                            className="w-full rounded-xl h-12 font-semibold"
+                          >
+                            <a href={event.video_url} target="_blank" rel="noopener noreferrer">
+                              <PlayCircle className="size-4 mr-1.5" />
+                              Watch Video
+                            </a>
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </Card>

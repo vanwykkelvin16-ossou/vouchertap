@@ -39,6 +39,7 @@ type EventRow = {
   ends_at: string | null;
   image_url: string | null;
   form_url: string | null;
+  video_url: string | null;
   is_published: boolean;
 };
 
@@ -59,6 +60,7 @@ const empty: EditState = {
   ends_at: "",
   image_url: null,
   form_url: "",
+  video_url: "",
   is_published: true,
   starts_date: "",
   starts_time: "",
@@ -81,15 +83,15 @@ function combineDatetime(date: string, time: string): string {
   return `${date}T${time || "00:00"}`;
 }
 
-/** Tidy a pasted form link: blank stays null, a bare domain gets https://. */
-function normaliseFormUrl(raw: string | null | undefined): string | null {
+/** Tidy a pasted link: blank stays null, a bare domain gets https://. */
+function normaliseLink(raw: string | null | undefined, label: string): string | null {
   const value = (raw ?? "").trim();
   if (!value) return null;
   const withProtocol = /^https?:\/\//i.test(value) ? value : `https://${value}`;
   try {
     return new URL(withProtocol).toString();
   } catch {
-    throw new Error("The form link isn't a valid URL");
+    throw new Error(`The ${label} link isn't a valid URL`);
   }
 }
 
@@ -125,7 +127,8 @@ function AdminEventsPage() {
         starts_at: new Date(startsAt).toISOString(),
         ends_at: endsAt ? new Date(endsAt).toISOString() : null,
         image_url: e.image_url ?? null,
-        form_url: normaliseFormUrl(e.form_url),
+        form_url: normaliseLink(e.form_url, "form"),
+        video_url: normaliseLink(e.video_url, "video"),
         is_published: e.is_published ?? true,
       };
       const isNew = !e.id;
@@ -356,6 +359,18 @@ function AdminEventsPage() {
                   placeholder="https://form.jotform.com/..."
                   value={edit.form_url ?? ""}
                   onChange={(e) => setEdit({ ...edit, form_url: e.target.value })}
+                />
+              </Field>
+              <Field
+                label="Video link"
+                hint="Paste a Google Drive, Facebook, YouTube or any other video link. Members see a Watch Video button on the event — leave it empty and no button shows."
+              >
+                <Input
+                  type="url"
+                  inputMode="url"
+                  placeholder="https://drive.google.com/..."
+                  value={edit.video_url ?? ""}
+                  onChange={(e) => setEdit({ ...edit, video_url: e.target.value })}
                 />
               </Field>
             </FormSection>

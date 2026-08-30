@@ -74,6 +74,7 @@ export type Database = {
           description: string | null;
           ends_at: string | null;
           form_url: string | null;
+          video_url: string | null;
           id: string;
           image_url: string | null;
           is_published: boolean;
@@ -86,6 +87,7 @@ export type Database = {
           description?: string | null;
           ends_at?: string | null;
           form_url?: string | null;
+          video_url?: string | null;
           id?: string;
           image_url?: string | null;
           is_published?: boolean;
@@ -98,6 +100,7 @@ export type Database = {
           description?: string | null;
           ends_at?: string | null;
           form_url?: string | null;
+          video_url?: string | null;
           id?: string;
           image_url?: string | null;
           is_published?: boolean;
