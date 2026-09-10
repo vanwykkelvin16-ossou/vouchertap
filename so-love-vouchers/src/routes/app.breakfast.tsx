@@ -26,30 +26,6 @@ type Meeting = {
   topic: string | null;
 };
 
-function nextBiweeklyFridays(count = 6) {
-  const now = new Date();
-  const d = new Date(now);
-  d.setHours(7, 30, 0, 0);
-  const day = d.getDay();
-  let diff = (5 - day + 7) % 7;
-  if (diff === 0 && now.getTime() > d.getTime()) diff = 7;
-  d.setDate(d.getDate() + diff);
-  const out: Date[] = [];
-  for (let i = 0; i < count; i++) {
-    out.push(new Date(d));
-    d.setDate(d.getDate() + 14);
-  }
-  return out;
-}
-
-function sameDay(a: Date, b: Date) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
-
 function daysUntil(date: Date) {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
@@ -102,14 +78,14 @@ function BreakfastPage() {
     },
   });
 
-  const upcoming = useMemo(() => nextBiweeklyFridays(6), []);
-
-  const schedule = useMemo(() => {
-    return upcoming.map((date) => {
-      const match = meetings?.find((m) => sameDay(new Date(m.meeting_date), date));
-      return { date, meeting: match };
-    });
-  }, [upcoming, meetings]);
+  // The admin's published rows *are* the schedule. Dates used to be generated
+  // as biweekly Fridays, which meant the page advertised sittings nobody had
+  // scheduled and the admin had no way to remove one. Now a date shows up only
+  // because someone added it, and disappears the moment they remove it.
+  const schedule = useMemo(
+    () => (meetings ?? []).map((meeting) => ({ date: new Date(meeting.meeting_date), meeting })),
+    [meetings],
+  );
 
   const featured = schedule[0];
   const inDays = featured ? daysUntil(featured.date) : null;
@@ -263,7 +239,15 @@ function BreakfastPage() {
               </div>
             </div>
           </Card>
-        ) : null}
+        ) : (
+          <Card className="rounded-2xl p-8 text-center">
+            <p className="text-sm font-semibold">No date on the calendar yet</p>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              The next breakfast is still being set. Check back shortly — or reserve your seat below
+              and we'll be in touch.
+            </p>
+          </Card>
+        )}
       </section>
 
       {/* 02 — RSVP */}
@@ -282,41 +266,53 @@ function BreakfastPage() {
       <section className="animate-rise" style={{ animationDelay: "200ms" }}>
         <SectionHeading no="03" title="Upcoming dates" />
         <Card className="rounded-2xl overflow-hidden divide-y divide-dashed divide-border p-0">
-          {schedule.map(({ date, meeting }, i) => (
-            <div
-              key={date.toISOString()}
-              className={`flex items-center gap-4 px-5 py-4 ${i === 0 ? "bg-accent/40" : ""}`}
-            >
-              <div className="w-12 text-center shrink-0">
-                <p className="font-serial text-[10px] uppercase text-primary">
-                  {date.toLocaleDateString(undefined, { month: "short" })}
-                </p>
-                <p
-                  className="text-2xl font-bold leading-none mt-0.5"
-                  style={{ fontFamily: "var(--font-display)" }}
-                >
-                  {date.getDate()}
-                </p>
-              </div>
-              <div className="h-9 w-px bg-border" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold">
-                  {date.toLocaleDateString(undefined, { weekday: "long" })}
-                  {i === 0 && (
-                    <span className="ml-2 text-[10px] uppercase tracking-wide text-primary font-bold">
-                      Next up
-                    </span>
-                  )}
-                </p>
-                <p className="text-xs text-muted-foreground truncate mt-0.5">
-                  {meeting?.speaker_name ?? "Speaker to be announced"}
-                </p>
-              </div>
-              <span className="font-serial text-[10px] text-muted-foreground/60 hidden sm:block">
-                {START_TIME}
-              </span>
+          {isLoading ? (
+            <div className="grid place-items-center py-10">
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
             </div>
-          ))}
+          ) : schedule.length === 0 ? (
+            <p className="px-5 py-8 text-center text-sm text-muted-foreground">
+              Dates are being finalised — check back shortly.
+            </p>
+          ) : (
+            schedule.map(({ date, meeting }, i) => (
+              <div
+                // Row id, not the date: a DB value that fails to parse would
+                // throw out of toISOString() and take the page down with it.
+                key={meeting.id}
+                className={`flex items-center gap-4 px-5 py-4 ${i === 0 ? "bg-accent/40" : ""}`}
+              >
+                <div className="w-12 text-center shrink-0">
+                  <p className="font-serial text-[10px] uppercase text-primary">
+                    {date.toLocaleDateString(undefined, { month: "short" })}
+                  </p>
+                  <p
+                    className="text-2xl font-bold leading-none mt-0.5"
+                    style={{ fontFamily: "var(--font-display)" }}
+                  >
+                    {date.getDate()}
+                  </p>
+                </div>
+                <div className="h-9 w-px bg-border" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold">
+                    {date.toLocaleDateString(undefined, { weekday: "long" })}
+                    {i === 0 && (
+                      <span className="ml-2 text-[10px] uppercase tracking-wide text-primary font-bold">
+                        Next up
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    {meeting?.speaker_name ?? "Speaker to be announced"}
+                  </p>
+                </div>
+                <span className="font-serial text-[10px] text-muted-foreground/60 hidden sm:block">
+                  {START_TIME}
+                </span>
+              </div>
+            ))
+          )}
         </Card>
       </section>
     </div>

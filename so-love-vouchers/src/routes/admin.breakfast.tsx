@@ -140,11 +140,12 @@ function AdminBreakfastPage() {
           <p className="text-xs uppercase tracking-widest text-primary font-semibold">Admin</p>
           <h1 className="text-3xl font-bold mt-1">Breakfast Meetings</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Upload the speaker for each bi-weekly Friday breakfast.
+            These dates are the schedule members see. Add one for every sitting; remove it and it
+            disappears from the booking page.
           </p>
         </div>
         <Button onClick={() => setEdit(empty)} className="rounded-full px-5 shadow-sm shrink-0">
-          <Plus className="size-4 mr-1.5" /> Add speaker
+          <Plus className="size-4 mr-1.5" /> Add date
         </Button>
       </header>
 
@@ -157,9 +158,9 @@ function AdminBreakfastPage() {
           <div className="size-12 mx-auto rounded-2xl bg-primary/10 text-primary grid place-items-center mb-3">
             <Mic2 className="size-6" />
           </div>
-          <p className="font-semibold">No meetings yet</p>
+          <p className="font-semibold">No dates yet</p>
           <p className="text-sm text-muted-foreground mt-1">
-            Add the speaker info for an upcoming breakfast.
+            Add a breakfast date — members see nothing under Upcoming dates until you do.
           </p>
         </Card>
       ) : (
@@ -234,19 +235,19 @@ function AdminBreakfastPage() {
         onOpenChange={(o) => !o && setEdit(null)}
         eyebrow="Breakfast"
         icon={Mic2}
-        title={edit?.id ? "Edit speaker" : "Add speaker"}
-        description="Appears on the breakfast booking page for everyone."
+        title={edit?.id ? "Edit date" : "Add date"}
+        description="The date shows under Upcoming dates for everyone. Speaker details are optional."
         footer={
           <ModalFooter
             hint={
               edit?.id
                 ? "Saving updates the booking page instantly."
-                : "Adds the speaker to the breakfast booking page."
+                : "Adds this date to the breakfast booking page."
             }
             onCancel={() => setEdit(null)}
             onSave={() => edit && save.mutate(edit)}
             saving={save.isPending}
-            saveLabel={edit?.id ? "Save changes" : "Add speaker"}
+            saveLabel={edit?.id ? "Save changes" : "Add date"}
           />
         }
       >
