@@ -9,6 +9,7 @@ import {
   TicketPercent,
   Loader2,
   Sparkles,
+  CheckCircle2,
   Clock,
   Store,
   ChevronDown,
@@ -331,7 +332,7 @@ function VoucherTicket({ voucher: v, onClaim }: { voucher: Voucher; onClaim: () 
           className="h-11 w-full rounded-full text-sm font-semibold shadow-sm transition-transform active:scale-[0.99]"
           onClick={onClaim}
         >
-          <Sparkles className="size-4" />
+          <CheckCircle2 className="size-4" />
           Claim voucher
         </Button>
       </div>
