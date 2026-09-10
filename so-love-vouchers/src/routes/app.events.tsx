@@ -46,14 +46,7 @@ function PinnedBreakfastCard() {
         </Badge>
       </div>
       <div className="p-6 flex-1 flex flex-col gap-4">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.18em] text-primary font-semibold">
-            Recurring · Every 2 weeks
-          </p>
-          <h2 className="text-xl font-semibold leading-snug mt-2 tracking-tight">
-            SLK Breakfast Meeting
-          </h2>
-        </div>
+        <h2 className="text-xl font-semibold leading-snug tracking-tight">SLK Breakfast Meeting</h2>
         <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
           Connect, hear from inspiring speakers, and share a meal with the SLK community every
           second Friday morning.
