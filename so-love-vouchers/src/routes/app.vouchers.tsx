@@ -8,7 +8,7 @@ import { Perforation, TicketBlock, TicketSkeleton, serialOf } from "@/components
 import {
   TicketPercent,
   Loader2,
-  Sparkles,
+  UserRound,
   CheckCircle2,
   Clock,
   Store,
@@ -217,7 +217,7 @@ function PageHeader({ count, loading }: { count: number; loading: boolean }) {
     <header className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
       <div>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
-          <Sparkles className="size-3" />
+          <UserRound className="size-3" />
           Members only
         </span>
         <h1 className="mt-3 text-3xl font-bold tracking-tight md:text-[2.75rem] md:leading-[1.05]">
